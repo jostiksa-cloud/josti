@@ -1,0 +1,42 @@
+{
+  "name": "josti",
+  "version": "1.0.0",
+  "private": true,
+  "description": "JOSTI transportation coordination platform for Intelligent Transport Corporation, implemented by VEGA.",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "web",
+    "admin"
+  ],
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "mobile": "bun run --cwd mobile start",
+    "start": "bun src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit && tsc -p admin/tsconfig.json --noEmit && tsc -p mobile/tsconfig.json --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "test": "bun test",
+    "test:e2e": "bun test tests/e2e",
+    "build": "bun run build:api && bun run build:web && bun run build:admin",
+    "build:api": "bun build src/index.ts --outdir dist --target bun",
+    "build:web": "bun run --cwd web build",
+    "build:admin": "bun run --cwd admin build",
+    "db:migrate": "bun src/db/migrate-cli.ts",
+    "seed:demo": "bun scripts/seed-demo.ts",
+    "jobs": "bun src/jobs/run.ts",
+    "manuals:pdf": "bun scripts/generate-manuals.ts"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.3.14",
+    "hono": "^4.9.8",
+    "jose": "^6.1.0",
+    "postgres": "^3.4.7",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.4",
+    "@types/bun": "^1.2.21",
+    "typescript": "^5.9.2"
+  }
+}
