@@ -3,7 +3,17 @@ import "leaflet/dist/leaflet.css";
 import { type ReactNode, StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer } from "react-leaflet";
-import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useNavigate, useParams } from "react-router-dom";
+import {
+  BrowserRouter,
+  Link,
+  Navigate,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 
 class ApiError extends Error {
   constructor(message: string) {
@@ -35,7 +45,11 @@ function useMapTiles() {
   useEffect(() => {
     api<Row>("/public/map-style")
       .then((row) => {
-        if (text(row.tileUrl)) setTiles({ url: text(row.tileUrl), attribution: text(row.attribution) || DEFAULT_TILES.attribution });
+        if (text(row.tileUrl))
+          setTiles({
+            url: text(row.tileUrl),
+            attribution: text(row.attribution) || DEFAULT_TILES.attribution,
+          });
       })
       .catch(() => undefined);
   }, []);
@@ -61,7 +75,9 @@ async function api<T>(path: string, options: { method?: string; json?: unknown }
 }
 
 function AdminApp() {
-  const [lang, setLang] = useState<Lang>((localStorage.getItem("josti-admin-lang") as Lang) || "ar");
+  const [lang, setLang] = useState<Lang>(
+    (localStorage.getItem("josti-admin-lang") as Lang) || "ar",
+  );
   const [dark, setDark] = useState(localStorage.getItem("josti-admin-theme") === "dark");
   const [account, setAccount] = useState<Row | null>(null);
   const [ready, setReady] = useState(false);
@@ -97,7 +113,13 @@ function AdminApp() {
           <Route
             path="/login"
             element={
-              <Login lang={lang} setLang={setLang} dark={dark} setDark={setDark} onAuth={setAccount} />
+              <Login
+                lang={lang}
+                setLang={setLang}
+                dark={dark}
+                setDark={setDark}
+                onAuth={setAccount}
+              />
             }
           />
           <Route path="/users" element={<Users lang={lang} account={account} />} />
@@ -137,7 +159,11 @@ function Shell({
   children: ReactNode;
 }) {
   const nav = useNavigate();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
+  if (location.pathname === "/login") {
+    return <>{children}</>;
+  }
   const links = [
     ["/", tx(lang, "لوحة المتابعة", "Overview")],
     ["/users", tx(lang, "التوثيق", "Verification")],
@@ -157,7 +183,7 @@ function Shell({
           onClick={() => setOpen(false)}
         />
       ) : null}
-      <aside className={open ? "side open" : "side"}>
+      <aside id="admin-side-nav" className={open ? "side open" : "side"}>
         <img className="logo" src="/brand/JOSTI_Arabic_Tagline_Reverse.svg" alt="JOSTI" />
         <div className="brandline">{tx(lang, "نعرف الطريق", "We know the way")}</div>
         <div className="navlabel">{tx(lang, "مساحة العمل", "WORKSPACE")}</div>
@@ -177,11 +203,21 @@ function Shell({
       </aside>
       <main className="main">
         <div className="top">
-          <button className="ghost menu" type="button" onClick={() => setOpen((value) => !value)}>
-            {tx(lang, "القائمة", "Menu")}
-          </button>
-          <strong>{text(account?.fullName) || tx(lang, "إدارة جوستي", "JOSTI Operations")}</strong>
-          <div className="row">
+          <div className="top-identity">
+            <button
+              className="ghost menu"
+              type="button"
+              aria-expanded={open}
+              aria-controls="admin-side-nav"
+              onClick={() => setOpen((value) => !value)}
+            >
+              {tx(lang, "القائمة", "Menu")}
+            </button>
+            <strong>
+              {text(account?.fullName) || tx(lang, "إدارة جوستي", "JOSTI Operations")}
+            </strong>
+          </div>
+          <div className="top-actions">
             <button className="ghost" type="button" onClick={() => setDark((value) => !value)}>
               {dark ? tx(lang, "فاتح", "Light") : tx(lang, "داكن", "Dark")}
             </button>
@@ -256,7 +292,11 @@ function Login({
         <button className="ghost" type="button" onClick={() => setDark((value) => !value)}>
           {dark ? tx(lang, "الوضع الفاتح", "Light mode") : tx(lang, "الوضع الداكن", "Dark mode")}
         </button>
-        <button className="ghost" type="button" onClick={() => setLang(lang === "ar" ? "en" : "ar")}>
+        <button
+          className="ghost"
+          type="button"
+          onClick={() => setLang(lang === "ar" ? "en" : "ar")}
+        >
           {lang === "ar" ? "English" : "العربية"}
         </button>
       </div>
@@ -508,19 +548,58 @@ function Queue({ lang, account }: { lang: Lang; account: Row | null }) {
   return (
     <>
       <div className="page-head">
-        <h1>{tx(lang, "كل رحلة تحت نظرك", "Every journey, in view")}</h1>
-        <p className="muted">
-          {tx(
-            lang,
-            "الإفراج للناقلين يدوي. موافقة الناقل ليست تعييناً للرحلة.",
-            "Release to carriers is manual. A carrier response is not a trip assignment.",
-          )}
-        </p>
+        <div>
+          <div className="breadcrumb">JOSTI / {tx(lang, "لوحة المتابعة", "Overview")}</div>
+          <h1>{tx(lang, "كل رحلة تحت نظرك", "Every journey, in view")}</h1>
+          <p className="muted">
+            {tx(
+              lang,
+              "الإفراج للناقلين يدوي. موافقة الناقل ليست تعييناً للرحلة.",
+              "Release to carriers is manual. A carrier response is not a trip assignment.",
+            )}
+          </p>
+        </div>
+        <div className="page-actions">
+          <a className="ghost" href="/api/v1/admin/exports/trips.csv">
+            {tx(lang, "تصدير الرحلات", "Export trips")}
+          </a>
+        </div>
       </div>
       {error ? <div className="err">{error}</div> : null}
       {report ? <ReportBoard lang={lang} report={report} fresh={fresh} /> : null}
       <h2>{tx(lang, "الطلبات", "Requests")}</h2>
-      <div className="table-scroll">
+      <div className="mobile-cards">
+        {requests.map((row) => (
+          <article className="record" key={`mr-${text(row.id)}`}>
+            <div>
+              <strong>{text(row.reference)}</strong>
+              <p className="muted">
+                {text(row.portCode)} · {text(row.containerNumber)} · {label(lang, text(row.status))}
+              </p>
+            </div>
+            <div className="page-actions">
+              <button className="ghost" type="button" onClick={() => nav(`/requests/${text(row.id)}`)}>
+                {tx(lang, "عرض", "Open")}
+              </button>
+              {text(row.status) === "ready_for_admin_review" ? (
+                <button
+                  className="cyan"
+                  type="button"
+                  onClick={async () => {
+                    await api(`/requests/${text(row.id)}/release`, {
+                      json: { notes: "Manual release" },
+                    });
+                    await load();
+                  }}
+                >
+                  {tx(lang, "إفراج", "Release")}
+                </button>
+              ) : null}
+            </div>
+          </article>
+        ))}
+      </div>
+      <div className="table-scroll desktop-table">
         <table>
           <thead>
             <tr>
@@ -534,7 +613,11 @@ function Queue({ lang, account }: { lang: Lang; account: Row | null }) {
           </thead>
           <tbody>
             {requests.map((row) => (
-              <tr className="clickable" key={text(row.id)} onClick={() => nav(`/requests/${text(row.id)}`)}>
+              <tr
+                className="clickable"
+                key={text(row.id)}
+                onClick={() => nav(`/requests/${text(row.id)}`)}
+              >
                 <td>{text(row.reference)}</td>
                 <td>{text(row.portCode)}</td>
                 <td>{text(row.containerNumber)}</td>
@@ -575,7 +658,11 @@ function Queue({ lang, account }: { lang: Lang; account: Row | null }) {
           </thead>
           <tbody>
             {trips.map((row) => (
-              <tr className="clickable" key={text(row.id)} onClick={() => nav(`/trips/${text(row.id)}`)}>
+              <tr
+                className="clickable"
+                key={text(row.id)}
+                onClick={() => nav(`/trips/${text(row.id)}`)}
+              >
                 <td>{text(row.reference)}</td>
                 <td>{label(lang, text(row.status))}</td>
                 <td>{text(row.agreedPrice) || text(row.price)}</td>
@@ -604,16 +691,20 @@ function Queue({ lang, account }: { lang: Lang; account: Row | null }) {
       <h2>{tx(lang, "البلاغات", "Incidents")}</h2>
       <div className="record-list">
         {incidents.map((row) => (
-        <button className="record" key={text(row.id)} type="button" onClick={() => nav(`/incidents/${text(row.id)}`)}>
-          <div>
-            <strong>{text(row.incidentType)}</strong>
-            <p className="muted">{text(row.description)}</p>
-          </div>
-          <span className="badge">{label(lang, text(row.status))}</span>
-        </button>
+          <button
+            className="record"
+            key={text(row.id)}
+            type="button"
+            onClick={() => nav(`/incidents/${text(row.id)}`)}
+          >
+            <div>
+              <strong>{text(row.incidentType)}</strong>
+              <p className="muted">{text(row.description)}</p>
+            </div>
+            <span className="badge">{label(lang, text(row.status))}</span>
+          </button>
         ))}
       </div>
-      <a href="/api/v1/admin/exports/trips.csv">{tx(lang, "تصدير الرحلات", "Export trips")}</a>
     </>
   );
 }
@@ -637,14 +728,59 @@ function Users({ lang, account }: { lang: Lang; account: Row | null }) {
   if (blocked) return blocked;
   return (
     <>
-      <h1>{tx(lang, "التحقق والحسابات", "Verification and accounts")}</h1>
+      <div className="page-head">
+        <div>
+          <div className="breadcrumb">JOSTI / {tx(lang, "التوثيق", "Verification")}</div>
+          <h1>{tx(lang, "التحقق والحسابات", "Verification and accounts")}</h1>
+          <p className="muted">
+            {tx(
+              lang,
+              "راجع الحسابات والمستندات وانتهاء الصلاحية من مكان واحد.",
+              "Review accounts, documents, and expiry alerts in one place.",
+            )}
+          </p>
+        </div>
+      </div>
       {error ? <div className="err">{error}</div> : null}
-      <input
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder={tx(lang, "بحث", "Search")}
-      />
-      <div className="table-scroll">
+      <div className="filter-bar">
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={tx(lang, "بحث", "Search")}
+        />
+      </div>
+      <div className="mobile-cards">
+        {rows.map((row) => (
+          <article className="record" key={`mu-${text(row.id)}`}>
+            <div>
+              <strong>{text(row.fullName)}</strong>
+              <p className="muted">
+                {text(row.email)} · {text(row.role)} · {text(row.status)}
+              </p>
+            </div>
+            <div className="page-actions">
+              <button className="ghost" type="button" onClick={() => nav(`/users/${text(row.id)}`)}>
+                {tx(lang, "عرض", "Open")}
+              </button>
+              <button
+                className="primary"
+                type="button"
+                onClick={() =>
+                  api(`/admin/users/${text(row.id)}/status`, {
+                    method: "PATCH",
+                    json: { status: "active" },
+                  })
+                    .then(load)
+                    .catch((caught: Error) => setError(caught.message))
+                }
+              >
+                {tx(lang, "تفعيل", "Activate")}
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+      <div className="table-scroll desktop-table">
         <table>
           <thead>
             <tr>
@@ -656,7 +792,11 @@ function Users({ lang, account }: { lang: Lang; account: Row | null }) {
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr className="clickable" key={text(row.id)} onClick={() => nav(`/users/${text(row.id)}`)}>
+              <tr
+                className="clickable"
+                key={text(row.id)}
+                onClick={() => nav(`/users/${text(row.id)}`)}
+              >
                 <td>
                   {text(row.fullName)}
                   <div className="muted">{text(row.email)}</div>
@@ -724,7 +864,11 @@ function Users({ lang, account }: { lang: Lang; account: Row | null }) {
             </thead>
             <tbody>
               {expiring.map((row) => (
-                <tr className="clickable" key={text(row.id)} onClick={() => nav(`/documents/${text(row.id)}`)}>
+                <tr
+                  className="clickable"
+                  key={text(row.id)}
+                  onClick={() => nav(`/documents/${text(row.id)}`)}
+                >
                   <td>{text(row.docType)}</td>
                   <td>{text(row.expiresOn)}</td>
                   <td>{text(row.status)}</td>
@@ -734,44 +878,52 @@ function Users({ lang, account }: { lang: Lang; account: Row | null }) {
           </table>
         </div>
       ) : (
-        <p className="muted">{tx(lang, "لا توجد مستندات خلال 30 يوماً.", "No documents expire within 30 days.")}</p>
+        <p className="muted">
+          {tx(lang, "لا توجد مستندات خلال 30 يوماً.", "No documents expire within 30 days.")}
+        </p>
       )}
       <h2>{tx(lang, "المستندات", "Documents")}</h2>
       <div className="record-list">
-      {docs
-        .filter((doc) => text(doc.status) === "pending")
-        .map((doc) => (
-          <article className="record" key={text(doc.id)} onClick={() => nav(`/documents/${text(doc.id)}`)}>
-            <div>
-              <strong>{text(doc.docType)}</strong>
-              <p className="muted">{text(doc.originalFilename)}</p>
-            </div>
-            <span className="row">
-              <button
-                className="cyan"
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  api(`/documents/${text(doc.id)}/review`, { json: { decision: "approved" } }).then(load);
-                }}
-              >
-                {tx(lang, "اعتماد", "Approve")}
-              </button>
-              <button
-                className="danger"
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  api(`/documents/${text(doc.id)}/review`, {
-                    json: { decision: "rejected", notes: "Rejected" },
-                  }).then(load);
-                }}
-              >
-                {tx(lang, "رفض", "Reject")}
-              </button>
-            </span>
-          </article>
-        ))}
+        {docs
+          .filter((doc) => text(doc.status) === "pending")
+          .map((doc) => (
+            <article
+              className="record"
+              key={text(doc.id)}
+              onClick={() => nav(`/documents/${text(doc.id)}`)}
+            >
+              <div>
+                <strong>{text(doc.docType)}</strong>
+                <p className="muted">{text(doc.originalFilename)}</p>
+              </div>
+              <span className="action-toolbar">
+                <button
+                  className="cyan"
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    api(`/documents/${text(doc.id)}/review`, {
+                      json: { decision: "approved" },
+                    }).then(load);
+                  }}
+                >
+                  {tx(lang, "اعتماد", "Approve")}
+                </button>
+                <button
+                  className="danger"
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    api(`/documents/${text(doc.id)}/review`, {
+                      json: { decision: "rejected", notes: "Rejected" },
+                    }).then(load);
+                  }}
+                >
+                  {tx(lang, "رفض", "Reject")}
+                </button>
+              </span>
+            </article>
+          ))}
       </div>
     </>
   );
@@ -784,7 +936,10 @@ function FleetBoard({ lang, account }: { lang: Lang; account: Row | null }) {
   const [drivers, setDrivers] = useState<Row[]>([]);
   const [error, setError] = useState("");
   const load = async () => {
-    const [vehicleRows, driverRows] = await Promise.all([api<Row[]>("/vehicles"), api<Row[]>("/drivers")]);
+    const [vehicleRows, driverRows] = await Promise.all([
+      api<Row[]>("/vehicles"),
+      api<Row[]>("/drivers"),
+    ]);
     setVehicles(vehicleRows);
     setDrivers(driverRows);
   };
@@ -792,24 +947,55 @@ function FleetBoard({ lang, account }: { lang: Lang; account: Row | null }) {
     if (account) void load().catch((caught: Error) => setError(caught.message));
   }, [account]);
   const setStatus = (kind: "vehicles" | "drivers", id: string, status: string) => {
-    api(`/admin/${kind}/${id}/status`, { method: "PATCH", json: { status, reason: "Administrative review" } })
+    api(`/admin/${kind}/${id}/status`, {
+      method: "PATCH",
+      json: { status, reason: "Administrative review" },
+    })
       .then(load)
       .catch((caught: Error) => setError(caught.message));
   };
   if (blocked) return blocked;
   return (
     <>
-      <h1>{tx(lang, "المركبات والسائقون", "Vehicles and drivers")}</h1>
-      <p className="muted">
-        {tx(
-          lang,
-          "كل المركبات والسائقون المسجلون على المنصة. التفعيل يبقى بعد اكتمال المستندات.",
-          "Every vehicle and driver registered on the platform. Activation still requires complete documents.",
-        )}
-      </p>
+      <div className="page-head">
+        <div>
+          <h1>{tx(lang, "المركبات والسائقون", "Vehicles and drivers")}</h1>
+          <p className="muted">
+            {tx(
+              lang,
+              "كل المركبات والسائقون المسجلون على المنصة. التفعيل يبقى بعد اكتمال المستندات.",
+              "Every vehicle and driver registered on the platform. Activation still requires complete documents.",
+            )}
+          </p>
+        </div>
+      </div>
       {error ? <div className="err">{error}</div> : null}
       <h2>{tx(lang, "المركبات", "Vehicles")}</h2>
-      <div className="table-scroll">
+      <div className="mobile-cards">
+        {vehicles.map((row) => (
+          <article className="record" key={`mv-${text(row.id)}`}>
+            <div>
+              <strong>{text(row.plateNumber)}</strong>
+              <p className="muted">
+                {text(row.truckType)} · {text(row.availability)} · {text(row.status)}
+              </p>
+            </div>
+            <div className="page-actions">
+              <button className="ghost" type="button" onClick={() => nav(`/fleet/${text(row.id)}`)}>
+                {tx(lang, "عرض", "Open")}
+              </button>
+              <button
+                className="primary"
+                type="button"
+                onClick={() => setStatus("vehicles", text(row.id), "active")}
+              >
+                {tx(lang, "تفعيل", "Activate")}
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+      <div className="table-scroll desktop-table">
         <table>
           <thead>
             <tr>
@@ -822,16 +1008,34 @@ function FleetBoard({ lang, account }: { lang: Lang; account: Row | null }) {
           </thead>
           <tbody>
             {vehicles.map((row) => (
-              <tr className="clickable" key={text(row.id)} onClick={() => nav(`/fleet/${text(row.id)}`)}>
+              <tr
+                className="clickable"
+                key={text(row.id)}
+                onClick={() => nav(`/fleet/${text(row.id)}`)}
+              >
                 <td>{text(row.plateNumber)}</td>
                 <td>{text(row.truckType)}</td>
                 <td>{text(row.availability)}</td>
                 <td>{text(row.status)}</td>
                 <td>
-                  <button className="primary" type="button" onClick={(event) => { event.stopPropagation(); setStatus("vehicles", text(row.id), "active"); }}>
+                  <button
+                    className="primary"
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setStatus("vehicles", text(row.id), "active");
+                    }}
+                  >
                     {tx(lang, "تفعيل", "Activate")}
                   </button>
-                  <button className="danger" type="button" onClick={(event) => { event.stopPropagation(); setStatus("vehicles", text(row.id), "suspended"); }}>
+                  <button
+                    className="danger"
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setStatus("vehicles", text(row.id), "suspended");
+                    }}
+                  >
                     {tx(lang, "إيقاف", "Suspend")}
                   </button>
                 </td>
@@ -841,7 +1045,31 @@ function FleetBoard({ lang, account }: { lang: Lang; account: Row | null }) {
         </table>
       </div>
       <h2>{tx(lang, "السائقون", "Drivers")}</h2>
-      <div className="table-scroll">
+      <div className="mobile-cards">
+        {drivers.map((row) => (
+          <article className="record" key={`md-${text(row.id)}`}>
+            <div>
+              <strong>{text(row.fullName)}</strong>
+              <p className="muted">
+                {text(row.email)} · {text(row.licenseNumber)} · {text(row.status)}
+              </p>
+            </div>
+            <div className="page-actions">
+              <button className="ghost" type="button" onClick={() => nav(`/fleet/${text(row.id)}`)}>
+                {tx(lang, "عرض", "Open")}
+              </button>
+              <button
+                className="primary"
+                type="button"
+                onClick={() => setStatus("drivers", text(row.id), "active")}
+              >
+                {tx(lang, "تفعيل", "Activate")}
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+      <div className="table-scroll desktop-table">
         <table>
           <thead>
             <tr>
@@ -854,16 +1082,34 @@ function FleetBoard({ lang, account }: { lang: Lang; account: Row | null }) {
           </thead>
           <tbody>
             {drivers.map((row) => (
-              <tr className="clickable" key={text(row.id)} onClick={() => nav(`/fleet/${text(row.id)}`)}>
+              <tr
+                className="clickable"
+                key={text(row.id)}
+                onClick={() => nav(`/fleet/${text(row.id)}`)}
+              >
                 <td>{text(row.fullName)}</td>
                 <td>{text(row.email)}</td>
                 <td>{text(row.licenseNumber)}</td>
                 <td>{text(row.status)}</td>
                 <td>
-                  <button className="primary" type="button" onClick={(event) => { event.stopPropagation(); setStatus("drivers", text(row.id), "active"); }}>
+                  <button
+                    className="primary"
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setStatus("drivers", text(row.id), "active");
+                    }}
+                  >
                     {tx(lang, "تفعيل", "Activate")}
                   </button>
-                  <button className="danger" type="button" onClick={(event) => { event.stopPropagation(); setStatus("drivers", text(row.id), "suspended"); }}>
+                  <button
+                    className="danger"
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setStatus("drivers", text(row.id), "suspended");
+                    }}
+                  >
                     {tx(lang, "إيقاف", "Suspend")}
                   </button>
                 </td>
@@ -891,14 +1137,26 @@ function Finance({ lang, account }: { lang: Lang; account: Row | null }) {
   if (blocked) return blocked;
   return (
     <>
-      <h1>{tx(lang, "الرسوم والتسويات الخارجية", "Fees and external settlements")}</h1>
-      <p className="muted">
-        {tx(
-          lang,
-          "لا توجد بوابة دفع أو محفظة. الفترة المجانية غير مفعّلة حتى تُعتمد سياستها.",
-          "There is no payment gateway or wallet. The free period stays inactive until its policy is approved.",
-        )}
-      </p>
+      <div className="page-head">
+        <div>
+          <h1>{tx(lang, "الرسوم والتسويات الخارجية", "Fees and external settlements")}</h1>
+          <p className="muted">
+            {tx(
+              lang,
+              "لا توجد بوابة دفع أو محفظة. الفترة المجانية غير مفعّلة حتى تُعتمد سياستها.",
+              "There is no payment gateway or wallet. The free period stays inactive until its policy is approved.",
+            )}
+          </p>
+        </div>
+        <div className="page-actions">
+          <a className="ghost" href="/api/v1/admin/exports/fees.csv">
+            {tx(lang, "تصدير الرسوم", "Export fees")}
+          </a>
+          <a className="ghost" href="/api/v1/admin/exports/trips.csv">
+            {tx(lang, "تصدير الرحلات", "Export trips")}
+          </a>
+        </div>
+      </div>
       {error ? <div className="err">{error}</div> : null}
       {policy ? (
         <p>
@@ -959,39 +1217,39 @@ function Finance({ lang, account }: { lang: Lang; account: Row | null }) {
         </button>
       </form>
       <div className="record-list">
-      {fees.map((fee) => (
-        <article className="record" key={text(fee.id)}>
-          <Link to={`/trips/${text(fee.tripId)}`}>
-            <strong>{text(fee.tripReference)}</strong>
-            <p className="muted">{text(fee.amount)} {text(fee.currency)} · {when(fee.createdAt, lang)}</p>
-          </Link>
-          <span className="badge">{label(lang, text(fee.status))}</span>
-          {text(fee.status) === "pending" ? (
-            <form
-              onSubmit={async (event) => {
-                event.preventDefault();
-                const form = new FormData(event.currentTarget);
-                await api(`/admin/fees/${text(fee.id)}/settlements`, {
-                  json: { externalReference: form.get("ref") },
-                });
-                await load();
-              }}
-            >
-              <input
-                name="ref"
-                required
-                placeholder={tx(lang, "مرجع خارجي", "External reference")}
-              />
-              <button className="cyan" type="submit">
-                {tx(lang, "تسجيل تسوية", "Record settlement")}
-              </button>
-            </form>
-          ) : null}
-        </article>
-      ))}
+        {fees.map((fee) => (
+          <article className="record" key={text(fee.id)}>
+            <Link to={`/trips/${text(fee.tripId)}`}>
+              <strong>{text(fee.tripReference)}</strong>
+              <p className="muted">
+                {text(fee.amount)} {text(fee.currency)} · {when(fee.createdAt, lang)}
+              </p>
+            </Link>
+            <span className="badge">{label(lang, text(fee.status))}</span>
+            {text(fee.status) === "pending" ? (
+              <form
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  const form = new FormData(event.currentTarget);
+                  await api(`/admin/fees/${text(fee.id)}/settlements`, {
+                    json: { externalReference: form.get("ref") },
+                  });
+                  await load();
+                }}
+              >
+                <input
+                  name="ref"
+                  required
+                  placeholder={tx(lang, "مرجع خارجي", "External reference")}
+                />
+                <button className="cyan" type="submit">
+                  {tx(lang, "تسجيل تسوية", "Record settlement")}
+                </button>
+              </form>
+            ) : null}
+          </article>
+        ))}
       </div>
-      <a href="/api/v1/admin/exports/fees.csv">{tx(lang, "تصدير الرسوم", "Export fees")}</a>{" "}
-      <a href="/api/v1/admin/exports/trips.csv">{tx(lang, "تصدير الرحلات", "Export trips")}</a>
     </>
   );
 }
@@ -1010,7 +1268,19 @@ function LiveMap({ lang, account }: { lang: Lang; account: Row | null }) {
   if (blocked) return blocked;
   return (
     <>
-      <h1>{tx(lang, "آخر ظهور", "Last seen")}</h1>
+      <div className="page-head">
+        <div>
+          <div className="breadcrumb">JOSTI / {tx(lang, "التتبع", "Tracking")}</div>
+          <h1>{tx(lang, "آخر ظهور", "Last seen")}</h1>
+          <p className="muted">
+            {tx(
+              lang,
+              "مواقع تقريبية لآخر تسجيلات المركبات على الشبكة.",
+              "Approximate last-seen locations for vehicles on the network.",
+            )}
+          </p>
+        </div>
+      </div>
       <div className="map">
         <MapContainer center={[24.2, 45.0]} zoom={5} style={{ height: "100%" }}>
           <TileLayer attribution={tiles.attribution} url={tiles.url} />
@@ -1022,7 +1292,12 @@ function LiveMap({ lang, account }: { lang: Lang; account: Row | null }) {
             >
               <Popup>
                 <Link to={`/fleet/${text(row.vehicleId)}`}>{text(row.plateNumber)}</Link>
-                {text(row.tripId) ? <> · <Link to={`/trips/${text(row.tripId)}`}>{tx(lang, "الرحلة", "Trip")}</Link></> : null}
+                {text(row.tripId) ? (
+                  <>
+                    {" "}
+                    · <Link to={`/trips/${text(row.tripId)}`}>{tx(lang, "الرحلة", "Trip")}</Link>
+                  </>
+                ) : null}
                 <div>{when(row.recordedAt, lang)}</div>
               </Popup>
             </CircleMarker>
@@ -1041,7 +1316,11 @@ function LiveMap({ lang, account }: { lang: Lang; account: Row | null }) {
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr className="clickable" key={`${text(row.vehicleId)}-${text(row.recordedAt)}`} onClick={() => nav(`/fleet/${text(row.vehicleId)}`)}>
+              <tr
+                className="clickable"
+                key={`${text(row.vehicleId)}-${text(row.recordedAt)}`}
+                onClick={() => nav(`/fleet/${text(row.vehicleId)}`)}
+              >
                 <td>{text(row.plateNumber)}</td>
                 <td>{text(row.truckType)}</td>
                 <td>{text(row.availability)}</td>
@@ -1097,17 +1376,26 @@ function RequestDetail({ lang, account }: { lang: Lang; account: Row | null }) {
     if (account) void load().catch((caught: Error) => setError(caught.message));
   }, [account, id]);
   if (blocked) return blocked;
-  if (!row) return error ? <div className="err">{error}</div> : <p>{tx(lang, "جار التحميل…", "Loading…")}</p>;
+  if (!row)
+    return error ? (
+      <div className="err">{error}</div>
+    ) : (
+      <p>{tx(lang, "جار التحميل…", "Loading…")}</p>
+    );
   const history = (row.history as Row[] | undefined) ?? [];
   const responses = (row.responses as Row[] | undefined) ?? [];
   const trip = (row.trip as Row | null) ?? null;
   return (
     <>
-      <Link className="back" to="/">{tx(lang, "العودة إلى المتابعة", "Back to overview")}</Link>
+      <Link className="back" to="/">
+        {tx(lang, "العودة إلى المتابعة", "Back to overview")}
+      </Link>
       <section className="hero-card">
         <span className="badge">{label(lang, text(row.status))}</span>
         <h1>{text(row.reference)}</h1>
-        <p>{text(row.portCode)} · {text(row.containerNumber)}</p>
+        <p>
+          {text(row.portCode)} · {text(row.containerNumber)}
+        </p>
       </section>
       {error ? <div className="err">{error}</div> : null}
       <Facts
@@ -1118,28 +1406,42 @@ function RequestDetail({ lang, account }: { lang: Lang; account: Row | null }) {
           [tx(lang, "الوصول المتوقع", "Expected arrival"), when(row.expectedDeliveryAt, lang)],
           [tx(lang, "نوع الحاوية", "Container type"), text(row.containerType)],
           [tx(lang, "الشاحنة", "Truck"), label(lang, text(row.truckType))],
-          [tx(lang, "السعر المعتمد", "Approved price"), text(row.approvedPrice) ? `${text(row.approvedPrice)} SAR` : ""],
+          [
+            tx(lang, "السعر المعتمد", "Approved price"),
+            text(row.approvedPrice) ? `${text(row.approvedPrice)} SAR` : "",
+          ],
           [tx(lang, "التعليمات", "Instructions"), text(row.instructions)],
           [tx(lang, "ملاحظات الإفراج", "Release notes"), text(row.releaseNotes)],
         ]}
       />
-      {trip ? <Link to={`/trips/${text(trip.id)}`}>{tx(lang, "فتح الرحلة", "Open the trip")} · {text(trip.reference)}</Link> : null}
+      {trip ? (
+        <Link to={`/trips/${text(trip.id)}`}>
+          {tx(lang, "فتح الرحلة", "Open the trip")} · {text(trip.reference)}
+        </Link>
+      ) : null}
       <StatusLog lang={lang} events={history} />
       {responses.length ? (
         <section className="card">
           <h2>{tx(lang, "المرشحون", "Candidates")}</h2>
           {responses.map((response) => (
             <p key={text(response.id)}>
-              {text(response.legalName) || text(response.carrierOrgId)} · {text(response.status)} · {text(response.acceptedPrice)} SAR
+              {text(response.legalName) || text(response.carrierOrgId)} · {text(response.status)} ·{" "}
+              {text(response.acceptedPrice)} SAR
             </p>
           ))}
         </section>
       ) : null}
       {text(row.status) === "ready_for_admin_review" ? (
-        <button className="cyan" type="button" onClick={async () => {
-          await api(`/requests/${id}/release`, { json: { notes: "Manual release" } });
-          await load();
-        }}>{tx(lang, "إفراج", "Release")}</button>
+        <button
+          className="cyan"
+          type="button"
+          onClick={async () => {
+            await api(`/requests/${id}/release`, { json: { notes: "Manual release" } });
+            await load();
+          }}
+        >
+          {tx(lang, "إفراج", "Release")}
+        </button>
       ) : null}
     </>
   );
@@ -1160,50 +1462,89 @@ function TripDetail({ lang, account }: { lang: Lang; account: Row | null }) {
     if (account) void load().catch((caught: Error) => setError(caught.message));
   }, [account, id]);
   if (blocked) return blocked;
-  if (!row) return error ? <div className="err">{error}</div> : <p>{tx(lang, "جار التحميل…", "Loading…")}</p>;
+  if (!row)
+    return error ? (
+      <div className="err">{error}</div>
+    ) : (
+      <p>{tx(lang, "جار التحميل…", "Loading…")}</p>
+    );
   const history = (row.history as Row[] | undefined) ?? [];
   const points = (tracking?.points as Row[] | undefined) ?? [];
-  const line = [...points].reverse().map((point) => [Number(point.latitude), Number(point.longitude)] as [number, number]).filter((point) => Number.isFinite(point[0]));
+  const line = [...points]
+    .reverse()
+    .map((point) => [Number(point.latitude), Number(point.longitude)] as [number, number])
+    .filter((point) => Number.isFinite(point[0]));
   const current = (tracking?.current as Row | undefined) ?? null;
   const fee = (row.fee as Row | null) ?? null;
   const delivery = (row.delivery as Row | null) ?? null;
   return (
     <>
-      <Link className="back" to="/">{tx(lang, "العودة إلى المتابعة", "Back to overview")}</Link>
+      <Link className="back" to="/">
+        {tx(lang, "العودة إلى المتابعة", "Back to overview")}
+      </Link>
       <section className="hero-card">
         <span className="badge">{label(lang, text(row.status))}</span>
         <h1>{text(row.reference)}</h1>
-        <p>{text(row.requestReference)} · {text(row.agreedPrice)} SAR</p>
+        <p>
+          {text(row.requestReference)} · {text(row.agreedPrice)} SAR
+        </p>
       </section>
       {error ? <div className="err">{error}</div> : null}
       {line.length ? (
         <div className="map">
-          <MapContainer center={line[line.length - 1] ?? [24.2, 45]} zoom={7} style={{ height: "100%" }}>
+          <MapContainer
+            center={line[line.length - 1] ?? [24.2, 45]}
+            zoom={7}
+            style={{ height: "100%" }}
+          >
             <TileLayer attribution={tiles.attribution} url={tiles.url} />
             <Polyline positions={line} pathOptions={{ color: "#32D5E7", weight: 5 }} />
-            {current ? <CircleMarker center={[Number(current.latitude), Number(current.longitude)]} radius={8} /> : null}
+            {current ? (
+              <CircleMarker
+                center={[Number(current.latitude), Number(current.longitude)]}
+                radius={8}
+              />
+            ) : null}
           </MapContainer>
         </div>
-      ) : <p className="muted">{tx(lang, "لا يوجد مسار بعد.", "No route has been recorded yet.")}</p>}
+      ) : (
+        <p className="muted">{tx(lang, "لا يوجد مسار بعد.", "No route has been recorded yet.")}</p>
+      )}
       <Facts
         rows={[
           [tx(lang, "الحالة", "Status"), label(lang, text(row.status))],
           [tx(lang, "السعر", "Price"), `${text(row.agreedPrice)} SAR`],
-          [tx(lang, "رسم المنصة", "Platform fee"), fee ? `${text(fee.amount)} ${text(fee.currency)} · ${text(fee.status)}` : ""],
+          [
+            tx(lang, "رسم المنصة", "Platform fee"),
+            fee ? `${text(fee.amount)} ${text(fee.currency)} · ${text(fee.status)}` : "",
+          ],
           [tx(lang, "المستلم", "Recipient"), text(delivery?.recipientName)],
           [tx(lang, "وقت التسليم", "Delivered"), delivery ? when(delivery.deliveredAt, lang) : ""],
-          [tx(lang, "آخر موقع", "Last location"), current ? `${text(current.latitude)}, ${text(current.longitude)}` : ""],
+          [
+            tx(lang, "آخر موقع", "Last location"),
+            current ? `${text(current.latitude)}, ${text(current.longitude)}` : "",
+          ],
           [tx(lang, "وقت الموقع", "Location time"), current ? when(current.recordedAt, lang) : ""],
           [tx(lang, "نقاط التتبع", "Tracking points"), String(points.length)],
         ]}
       />
-      {text(row.requestId) ? <Link to={`/requests/${text(row.requestId)}`}>{tx(lang, "فتح الطلب", "Open the request")}</Link> : null}
+      {text(row.requestId) ? (
+        <Link to={`/requests/${text(row.requestId)}`}>
+          {tx(lang, "فتح الطلب", "Open the request")}
+        </Link>
+      ) : null}
       <StatusLog lang={lang} events={history} />
       {text(row.status) === "delivered" ? (
-        <button className="primary" type="button" onClick={async () => {
-          await api(`/trips/${id}/transition`, { json: { toStatus: "closed" } });
-          await load();
-        }}>{tx(lang, "إغلاق الرحلة", "Close trip")}</button>
+        <button
+          className="primary"
+          type="button"
+          onClick={async () => {
+            await api(`/trips/${id}/transition`, { json: { toStatus: "closed" } });
+            await load();
+          }}
+        >
+          {tx(lang, "إغلاق الرحلة", "Close trip")}
+        </button>
       ) : null}
     </>
   );
@@ -1224,10 +1565,17 @@ function IncidentDetail({ lang, account }: { lang: Lang; account: Row | null }) 
     if (account) void load().catch((caught: Error) => setError(caught.message));
   }, [account, id]);
   if (blocked) return blocked;
-  if (!row) return error ? <div className="err">{error}</div> : <p>{tx(lang, "جار التحميل…", "Loading…")}</p>;
+  if (!row)
+    return error ? (
+      <div className="err">{error}</div>
+    ) : (
+      <p>{tx(lang, "جار التحميل…", "Loading…")}</p>
+    );
   return (
     <>
-      <Link className="back" to="/">{tx(lang, "العودة إلى المتابعة", "Back to overview")}</Link>
+      <Link className="back" to="/">
+        {tx(lang, "العودة إلى المتابعة", "Back to overview")}
+      </Link>
       <section className="hero-card">
         <span className="badge">{label(lang, text(row.status))}</span>
         <h1>{label(lang, text(row.incidentType))}</h1>
@@ -1241,12 +1589,22 @@ function IncidentDetail({ lang, account }: { lang: Lang; account: Row | null }) 
             [tx(lang, "أُغلق في", "Resolved"), when(row.resolvedAt, lang)],
           ]}
         />
-        {text(row.tripId) ? <Link to={`/trips/${text(row.tripId)}`}>{tx(lang, "فتح الرحلة", "Open the trip")}</Link> : null}
+        {text(row.tripId) ? (
+          <Link to={`/trips/${text(row.tripId)}`}>{tx(lang, "فتح الرحلة", "Open the trip")}</Link>
+        ) : null}
         {text(row.status) === "open" ? (
-          <button className="ghost" type="button" onClick={async () => {
-            await api(`/admin/incidents/${id}/resolve`, { json: { status: "resolved", resolution: "Reviewed" } });
-            await load();
-          }}>{tx(lang, "إغلاق البلاغ", "Resolve")}</button>
+          <button
+            className="ghost"
+            type="button"
+            onClick={async () => {
+              await api(`/admin/incidents/${id}/resolve`, {
+                json: { status: "resolved", resolution: "Reviewed" },
+              });
+              await load();
+            }}
+          >
+            {tx(lang, "إغلاق البلاغ", "Resolve")}
+          </button>
         ) : null}
       </section>
     </>
@@ -1269,11 +1627,21 @@ function AuditDetail({ lang, account }: { lang: Lang; account: Row | null }) {
       .catch((caught: Error) => setError(caught.message));
   }, [account, id, lang]);
   if (blocked) return blocked;
-  if (!row) return error ? <div className="err">{error}</div> : <p>{tx(lang, "جار التحميل…", "Loading…")}</p>;
-  const metadata = row.metadata && typeof row.metadata === "object" ? JSON.stringify(row.metadata, null, 2) : text(row.metadata);
+  if (!row)
+    return error ? (
+      <div className="err">{error}</div>
+    ) : (
+      <p>{tx(lang, "جار التحميل…", "Loading…")}</p>
+    );
+  const metadata =
+    row.metadata && typeof row.metadata === "object"
+      ? JSON.stringify(row.metadata, null, 2)
+      : text(row.metadata);
   return (
     <>
-      <Link className="back" to="/audit">{tx(lang, "العودة إلى السجل", "Back to the log")}</Link>
+      <Link className="back" to="/audit">
+        {tx(lang, "العودة إلى السجل", "Back to the log")}
+      </Link>
       <section className="hero-card">
         <span className="badge">{text(row.entityType)}</span>
         <h1>{text(row.action)}</h1>
@@ -1287,9 +1655,19 @@ function AuditDetail({ lang, account }: { lang: Lang; account: Row | null }) {
         ]}
       />
       {metadata ? <pre className="meta">{metadata}</pre> : null}
-      {text(row.entityType) === "account" && text(row.entityId) ? <Link to={`/users/${text(row.entityId)}`}>{tx(lang, "فتح الحساب", "Open the account")}</Link> : null}
-      {text(row.entityType) === "trip" && text(row.entityId) ? <Link to={`/trips/${text(row.entityId)}`}>{tx(lang, "فتح الرحلة", "Open the trip")}</Link> : null}
-      {text(row.entityType) === "request" && text(row.entityId) ? <Link to={`/requests/${text(row.entityId)}`}>{tx(lang, "فتح الطلب", "Open the request")}</Link> : null}
+      {text(row.entityType) === "account" && text(row.entityId) ? (
+        <Link to={`/users/${text(row.entityId)}`}>
+          {tx(lang, "فتح الحساب", "Open the account")}
+        </Link>
+      ) : null}
+      {text(row.entityType) === "trip" && text(row.entityId) ? (
+        <Link to={`/trips/${text(row.entityId)}`}>{tx(lang, "فتح الرحلة", "Open the trip")}</Link>
+      ) : null}
+      {text(row.entityType) === "request" && text(row.entityId) ? (
+        <Link to={`/requests/${text(row.entityId)}`}>
+          {tx(lang, "فتح الطلب", "Open the request")}
+        </Link>
+      ) : null}
     </>
   );
 }
@@ -1306,11 +1684,20 @@ function UserDetail({ lang, account }: { lang: Lang; account: Row | null }) {
       .catch((caught: Error) => setError(caught.message));
   }, [account, id]);
   if (blocked) return blocked;
-  if (!row) return error ? <div className="err">{error}</div> : <p>{tx(lang, "جار التحميل…", "Loading…")}</p>;
-  const permissions = Array.isArray(row.adminPermissions) ? (row.adminPermissions as string[]).join(", ") : "";
+  if (!row)
+    return error ? (
+      <div className="err">{error}</div>
+    ) : (
+      <p>{tx(lang, "جار التحميل…", "Loading…")}</p>
+    );
+  const permissions = Array.isArray(row.adminPermissions)
+    ? (row.adminPermissions as string[]).join(", ")
+    : "";
   return (
     <>
-      <Link className="back" to="/users">{tx(lang, "العودة إلى الحسابات", "Back to accounts")}</Link>
+      <Link className="back" to="/users">
+        {tx(lang, "العودة إلى الحسابات", "Back to accounts")}
+      </Link>
       <section className="hero-card">
         <span className="badge">{text(row.status)}</span>
         <h1>{text(row.fullName)}</h1>
@@ -1346,28 +1733,37 @@ function FleetDetail({ lang, account }: { lang: Lang; account: Row | null }) {
       .catch((caught: Error) => setError(caught.message));
   }, [account, id]);
   if (blocked) return blocked;
-  if (!row) return error ? <div className="err">{error}</div> : <p>{tx(lang, "جار التحميل…", "Loading…")}</p>;
+  if (!row)
+    return error ? (
+      <div className="err">{error}</div>
+    ) : (
+      <p>{tx(lang, "جار التحميل…", "Loading…")}</p>
+    );
   return (
     <>
-      <Link className="back" to="/fleet">{tx(lang, "العودة إلى الأسطول", "Back to the fleet")}</Link>
+      <Link className="back" to="/fleet">
+        {tx(lang, "العودة إلى الأسطول", "Back to the fleet")}
+      </Link>
       <section className="hero-card">
         <span className="badge">{text(row.status)}</span>
         <h1>{kind === "vehicle" ? text(row.plateNumber) : text(row.fullName)}</h1>
         <p>{kind === "vehicle" ? text(row.truckType) : text(row.email)}</p>
       </section>
       <Facts
-        rows={kind === "vehicle"
-          ? [
-              [tx(lang, "التوفر", "Availability"), text(row.availability)],
-              [tx(lang, "التأمين", "Insurance"), text(row.insuranceExpiry)],
-              [tx(lang, "الفحص", "Inspection"), text(row.inspectionExpiry)],
-            ]
-          : [
-              [tx(lang, "الرخصة", "License"), text(row.licenseNumber)],
-              [tx(lang, "انتهاء الرخصة", "License expiry"), text(row.licenseExpiry)],
-              [tx(lang, "التوفر", "Availability"), text(row.availability)],
-              [tx(lang, "الجوال", "Phone"), text(row.phone)],
-            ]}
+        rows={
+          kind === "vehicle"
+            ? [
+                [tx(lang, "التوفر", "Availability"), text(row.availability)],
+                [tx(lang, "التأمين", "Insurance"), text(row.insuranceExpiry)],
+                [tx(lang, "الفحص", "Inspection"), text(row.inspectionExpiry)],
+              ]
+            : [
+                [tx(lang, "الرخصة", "License"), text(row.licenseNumber)],
+                [tx(lang, "انتهاء الرخصة", "License expiry"), text(row.licenseExpiry)],
+                [tx(lang, "التوفر", "Availability"), text(row.availability)],
+                [tx(lang, "الجوال", "Phone"), text(row.phone)],
+              ]
+        }
       />
     </>
   );
@@ -1388,10 +1784,17 @@ function DocumentDetail({ lang, account }: { lang: Lang; account: Row | null }) 
     if (account) void load().catch((caught: Error) => setError(caught.message));
   }, [account, id]);
   if (blocked) return blocked;
-  if (!row) return error ? <div className="err">{error}</div> : <p>{tx(lang, "جار التحميل…", "Loading…")}</p>;
+  if (!row)
+    return error ? (
+      <div className="err">{error}</div>
+    ) : (
+      <p>{tx(lang, "جار التحميل…", "Loading…")}</p>
+    );
   return (
     <>
-      <Link className="back" to="/users">{tx(lang, "العودة إلى التحقق", "Back to verification")}</Link>
+      <Link className="back" to="/users">
+        {tx(lang, "العودة إلى التحقق", "Back to verification")}
+      </Link>
       <section className="hero-card">
         <span className="badge">{text(row.status)}</span>
         <h1>{text(row.docType)}</h1>
@@ -1406,18 +1809,34 @@ function DocumentDetail({ lang, account }: { lang: Lang; account: Row | null }) 
           [tx(lang, "السائق", "Driver"), text(row.driverId)],
         ]}
       />
-      <div className="row">
-        <a href={`/api/v1/documents/${id}/download`}>{tx(lang, "عرض الملف", "Open the file")}</a>
+      <div className="action-toolbar">
+        <a className="ghost" href={`/api/v1/documents/${id}/download`}>
+          {tx(lang, "عرض الملف", "Open the file")}
+        </a>
         {text(row.status) === "pending" ? (
           <>
-            <button className="cyan" type="button" onClick={async () => {
-              await api(`/documents/${id}/review`, { json: { decision: "approved" } });
-              await load();
-            }}>{tx(lang, "اعتماد", "Approve")}</button>
-            <button className="danger" type="button" onClick={async () => {
-              await api(`/documents/${id}/review`, { json: { decision: "rejected", notes: "Rejected" } });
-              await load();
-            }}>{tx(lang, "رفض", "Reject")}</button>
+            <button
+              className="cyan"
+              type="button"
+              onClick={async () => {
+                await api(`/documents/${id}/review`, { json: { decision: "approved" } });
+                await load();
+              }}
+            >
+              {tx(lang, "اعتماد", "Approve")}
+            </button>
+            <button
+              className="danger"
+              type="button"
+              onClick={async () => {
+                await api(`/documents/${id}/review`, {
+                  json: { decision: "rejected", notes: "Rejected" },
+                });
+                await load();
+              }}
+            >
+              {tx(lang, "رفض", "Reject")}
+            </button>
           </>
         ) : null}
       </div>
@@ -1439,14 +1858,16 @@ function Integrations({ lang, account }: { lang: Lang; account: Row | null }) {
   return (
     <>
       <div className="page-head">
-        <h1>{tx(lang, "بيانات التكامل", "Integration data")}</h1>
-        <p className="muted">
-          {tx(
-            lang,
-            "إدارة عناوين الربط والمفاتيح للمنصات المتصلة. المفاتيح المحفوظة لا تُعرض كاملة.",
-            "Manage connection details and keys for connected platforms. Saved keys are never shown in full.",
-          )}
-        </p>
+        <div>
+          <h1>{tx(lang, "بيانات التكامل", "Integration data")}</h1>
+          <p className="muted">
+            {tx(
+              lang,
+              "إدارة عناوين الربط والمفاتيح للمنصات المتصلة. المفاتيح المحفوظة لا تُعرض كاملة.",
+              "Manage connection details and keys for connected platforms. Saved keys are never shown in full.",
+            )}
+          </p>
+        </div>
       </div>
       {error ? <div className="err">{error}</div> : null}
       {saved ? <div className="badge ok">{saved}</div> : null}
@@ -1502,7 +1923,9 @@ function Integrations({ lang, account }: { lang: Lang; account: Row | null }) {
                   <span className="eyebrow">{text(row.category)}</span>
                   <h2>{lang === "ar" ? text(row.nameAr) : text(row.nameEn)}</h2>
                 </div>
-                <span className={`badge ${text(row.status) === "ready" ? "ok" : text(row.status) === "disabled" ? "" : "warn"}`}>
+                <span
+                  className={`badge ${text(row.status) === "ready" ? "ok" : text(row.status) === "disabled" ? "" : "warn"}`}
+                >
                   {text(row.status) === "ready"
                     ? tx(lang, "جاهز", "Ready")
                     : text(row.status) === "disabled"
@@ -1528,13 +1951,19 @@ function Integrations({ lang, account }: { lang: Lang; account: Row | null }) {
                     {tx(lang, "التصنيف", "Category")}
                     <select name="category" defaultValue={text(row.category)}>
                       {categories.map((item) => (
-                        <option key={item} value={item}>{item}</option>
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
                       ))}
                     </select>
                   </label>
                   <label>
                     {tx(lang, "عنوان الربط", "Endpoint")}
-                    <input name="endpoint" defaultValue={text(row.endpoint)} placeholder="https://" />
+                    <input
+                      name="endpoint"
+                      defaultValue={text(row.endpoint)}
+                      placeholder="https://"
+                    />
                   </label>
                 </>
               )}
@@ -1542,21 +1971,44 @@ function Integrations({ lang, account }: { lang: Lang; account: Row | null }) {
                 <label key={text(field.key)}>
                   {lang === "ar" ? text(field.labelAr) : text(field.labelEn)}
                   {text(field.kind) === "boolean" ? (
-                    <input name={text(field.key)} type="checkbox" defaultChecked={text(field.value) === "true"} />
+                    <input
+                      name={text(field.key)}
+                      type="checkbox"
+                      defaultChecked={text(field.value) === "true"}
+                    />
                   ) : (
                     <input
                       name={text(field.key)}
-                      type={field.secret ? "password" : text(field.kind) === "number" ? "number" : "text"}
+                      type={
+                        field.secret
+                          ? "password"
+                          : text(field.kind) === "number"
+                            ? "number"
+                            : "text"
+                      }
                       defaultValue={field.secret ? "" : text(field.value)}
                       placeholder={field.secret && field.configured ? text(field.hint) : ""}
                       autoComplete="off"
                     />
                   )}
                   {text(field.origin) === "environment" ? (
-                    <span className="field-key">{tx(lang, "القيمة الحالية من إعداد الخادم", "Current value comes from the server environment")}</span>
+                    <span className="field-key">
+                      {tx(
+                        lang,
+                        "القيمة الحالية من إعداد الخادم",
+                        "Current value comes from the server environment",
+                      )}
+                    </span>
                   ) : null}
                   {field.secret && field.configured ? (
-                    <span className="field-key">{tx(lang, "اتركه فارغاً للإبقاء على المفتاح الحالي", "Leave blank to keep the current key")} · {text(field.hint)}</span>
+                    <span className="field-key">
+                      {tx(
+                        lang,
+                        "اتركه فارغاً للإبقاء على المفتاح الحالي",
+                        "Leave blank to keep the current key",
+                      )}{" "}
+                      · {text(field.hint)}
+                    </span>
                   ) : null}
                 </label>
               ))}
@@ -1564,8 +2016,10 @@ function Integrations({ lang, account }: { lang: Lang; account: Row | null }) {
                 {tx(lang, "ملاحظات", "Notes")}
                 <textarea name="notes" defaultValue={text(row.notes)} />
               </label>
-              <div className="row">
-                <button className="primary" type="submit">{tx(lang, "حفظ", "Save")}</button>
+              <div className="action-toolbar">
+                <button className="primary" type="submit">
+                  {tx(lang, "حفظ", "Save")}
+                </button>
                 {row.builtin ? null : (
                   <button
                     className="danger"
@@ -1597,7 +2051,9 @@ function Integrations({ lang, account }: { lang: Lang; account: Row | null }) {
                 endpoint: text(form.get("endpoint")) || null,
                 notes: text(form.get("notes")) || null,
                 enabled: form.get("enabled") === "on",
-                publicConfig: text(form.get("clientId")) ? { clientId: text(form.get("clientId")) } : {},
+                publicConfig: text(form.get("clientId"))
+                  ? { clientId: text(form.get("clientId")) }
+                  : {},
                 secrets: text(form.get("apiKey")) ? { apiKey: text(form.get("apiKey")) } : {},
               },
             });
@@ -1624,7 +2080,9 @@ function Integrations({ lang, account }: { lang: Lang; account: Row | null }) {
             {tx(lang, "التصنيف", "Category")}
             <select name="category" defaultValue="other">
               {categories.map((item) => (
-                <option key={item} value={item}>{item}</option>
+                <option key={item} value={item}>
+                  {item}
+                </option>
               ))}
             </select>
           </label>
@@ -1649,7 +2107,9 @@ function Integrations({ lang, account }: { lang: Lang; account: Row | null }) {
           <input name="enabled" type="checkbox" defaultChecked />
           <span>{tx(lang, "تفعيل", "Enabled")}</span>
         </label>
-        <button className="cyan" type="submit">{tx(lang, "إضافة", "Add platform")}</button>
+        <button className="cyan" type="submit">
+          {tx(lang, "إضافة", "Add platform")}
+        </button>
       </form>
     </>
   );
@@ -1669,9 +2129,39 @@ function Audit({ lang, account }: { lang: Lang; account: Row | null }) {
   if (blocked) return blocked;
   return (
     <>
-      <h1>{tx(lang, "سجل التدقيق", "Audit log")}</h1>
+      <div className="page-head">
+        <div>
+          <div className="breadcrumb">JOSTI / {tx(lang, "السجل", "Audit")}</div>
+          <h1>{tx(lang, "سجل التدقيق", "Audit log")}</h1>
+          <p className="muted">
+            {tx(
+              lang,
+              "أحداث إدارية قابلة للتتبع للمراجعة والامتثال.",
+              "Traceable administrative events for review and compliance.",
+            )}
+          </p>
+        </div>
+      </div>
       {error ? <div className="err">{error}</div> : null}
-      <div className="table-scroll">
+      <div className="mobile-cards">
+        {rows.map((row) => (
+          <button
+            className="record"
+            type="button"
+            key={`ma-${text(row.id)}`}
+            onClick={() => nav(`/audit/${text(row.id)}`)}
+          >
+            <div>
+              <strong>{text(row.action)}</strong>
+              <p className="muted">
+                {when(row.createdAt, lang)} · {text(row.entityType)}
+              </p>
+            </div>
+            <span className="badge">{text(row.entityId)}</span>
+          </button>
+        ))}
+      </div>
+      <div className="table-scroll desktop-table">
         <table>
           <thead>
             <tr>
@@ -1683,7 +2173,11 @@ function Audit({ lang, account }: { lang: Lang; account: Row | null }) {
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr className="clickable" key={text(row.id)} onClick={() => nav(`/audit/${text(row.id)}`)}>
+              <tr
+                className="clickable"
+                key={text(row.id)}
+                onClick={() => nav(`/audit/${text(row.id)}`)}
+              >
                 <td>{when(row.createdAt, lang)}</td>
                 <td>{text(row.action)}</td>
                 <td>{text(row.entityType)}</td>

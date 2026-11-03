@@ -1,0 +1,32 @@
+[
+  {
+    "file": "C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\web_map_375.png",
+    "status": 0,
+    "stderr": "26468 bytes written to file C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\web_map_375.png\r\n"
+  },
+  {
+    "file": "C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\web_map_768.png",
+    "status": 0,
+    "stderr": "88162 bytes written to file C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\web_map_768.png\r\n"
+  },
+  {
+    "file": "C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\web_map_1440.png",
+    "status": 0,
+    "stderr": "124675 bytes written to file C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\web_map_1440.png\r\n"
+  },
+  {
+    "file": "C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\proto_map_375.png",
+    "status": 0,
+    "stderr": "42696 bytes written to file C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\proto_map_375.png\r\n"
+  },
+  {
+    "file": "C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\proto_map_768.png",
+    "status": 0,
+    "stderr": "90964 bytes written to file C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\proto_map_768.png\r\n"
+  },
+  {
+    "file": "C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\proto_map_1440.png",
+    "status": 0,
+    "stderr": "139883 bytes written to file C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\proto_map_1440.png\r\n"
+  }
+]

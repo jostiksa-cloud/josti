@@ -5,7 +5,13 @@ import { fileURLToPath, URL } from "node:url";
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: { "@josti/contracts": fileURLToPath(new URL("../packages/contracts/src/index.ts", import.meta.url)) },
+    alias: {
+      "@josti/contracts": fileURLToPath(new URL("../packages/contracts/src/index.ts", import.meta.url)),
+      "@josti/ui": fileURLToPath(new URL("../packages/ui/src", import.meta.url)),
+    },
+  },
+  css: {
+    preprocessorOptions: {},
   },
   server: {
     port: 5173,

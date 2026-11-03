@@ -17,7 +17,7 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "test": "bun test",
-    "test:e2e": "bun test tests/e2e",
+    "test:e2e": "bun test tests/platform.test.ts",
     "build": "bun run build:api && bun run build:web && bun run build:admin",
     "build:api": "bun build src/index.ts --outdir dist --target bun",
     "build:web": "bun run --cwd web build",
@@ -37,6 +37,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.2.4",
     "@types/bun": "^1.2.21",
+    "playwright-core": "^1.64.1",
     "typescript": "^5.9.2"
   }
 }

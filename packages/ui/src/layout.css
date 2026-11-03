@@ -1,0 +1,270 @@
+/* Application shell — prototype sidebar + main + responsive drawer */
+
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.side,
+.sidebar {
+  background: var(--brand);
+  color: #fff;
+  padding: 22px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 100vh;
+}
+
+.side nav,
+.sidebar .nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.side a,
+.sidebar .nav a {
+  color: #f7f2ff;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--touch);
+  padding: 10px 14px;
+  border-radius: 14px;
+  border-inline-start: 3px solid transparent;
+}
+
+.side a.active,
+.side a:hover,
+.sidebar .nav a.active,
+.sidebar .nav a:hover {
+  background: #ffffff16;
+  color: #fff;
+}
+
+.side a.active,
+.sidebar .nav a.active {
+  border-inline-start-color: var(--cyan);
+}
+
+.logo {
+  width: 168px;
+  height: auto;
+  max-width: 100%;
+}
+
+.brandline {
+  color: #d7c6ea;
+  font-size: 13px;
+}
+
+.navlabel {
+  color: #b9a7cd;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  margin-top: 8px;
+}
+
+.side-bottom {
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.sidecard {
+  background: #ffffff0c;
+  border: 1px solid #ffffff14;
+  border-radius: 18px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidecard p {
+  color: #d7c6ea;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.main {
+  min-width: 0;
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.topbar,
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--topbar-h);
+}
+
+.backdrop {
+  display: none;
+}
+
+.menu,
+.mobilemenu {
+  display: none;
+}
+
+.breadcrumb {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Prototype pageHead: title block + actions that wrap cleanly */
+.page-title,
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  width: 100%;
+}
+
+.page-title > div,
+.page-head > div {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.page-title h1,
+.page-head h1 {
+  font-size: clamp(1.25rem, 2.4vw, 1.55rem);
+  word-break: break-word;
+}
+
+.page-title p,
+.page-head p {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 4px;
+  max-width: 56ch;
+}
+
+.page-actions,
+.toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1 1 180px;
+  max-width: 100%;
+}
+
+.page-actions > *,
+.toolbar-actions > * {
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
+.page-actions .btn,
+.page-actions button,
+.toolbar-actions button,
+.page-title > a,
+.page-title > button,
+.page-head > a,
+.page-head > button {
+  white-space: nowrap;
+}
+
+@media (max-width: 780px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .side,
+  .sidebar {
+    position: fixed;
+    z-index: 40;
+    inset-block: 0;
+    inset-inline-start: 0;
+    width: min(280px, 86vw);
+    transform: translateX(110%);
+    box-shadow: 0 0 50px #0005;
+  }
+
+  html[dir="ltr"] .side,
+  html[dir="ltr"] .sidebar {
+    transform: translateX(-110%);
+  }
+
+  .side.open,
+  .sidebar.open {
+    transform: none !important;
+  }
+
+  .menu,
+  .mobilemenu {
+    display: inline-flex;
+    min-height: var(--touch);
+  }
+
+  .backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    border: 0;
+    background: #12081866;
+    padding: 0;
+  }
+
+  .main {
+    padding: 16px 14px 28px;
+  }
+
+  .page-title,
+  .page-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-actions,
+  .toolbar-actions {
+    justify-content: stretch;
+  }
+
+  .page-actions > *,
+  .toolbar-actions > *,
+  .page-title > a,
+  .page-title > button,
+  .page-head > a,
+  .page-head > button {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+
+  .page-actions button,
+  .toolbar-actions button,
+  .page-title button,
+  .page-head button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  h1 {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 560px) {
+  .topbar .avatar,
+  .topbar .profile-name,
+  .top .theme-label {
+    display: none;
+  }
+}

@@ -52,7 +52,10 @@ export function browserOriginAllowed(origin: string | undefined, config: AppConf
     const host = new URL(origin).hostname;
     if (host === "localhost" || host === "127.0.0.1" || host === "::1") return true;
     const parts = host.split(".").map(Number);
-    if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255))
+    if (
+      parts.length !== 4 ||
+      parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)
+    )
       return false;
     if (parts[0] === 10 || (parts[0] === 192 && parts[1] === 168)) return true;
     return parts[0] === 172 && (parts[1] ?? 0) >= 16 && (parts[1] ?? 0) <= 31;

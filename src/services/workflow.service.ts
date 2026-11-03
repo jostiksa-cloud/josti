@@ -350,6 +350,7 @@ export async function createRequest(
 
 export async function updateRequest(
   sql: Sql,
+  config: AppConfig,
   actor: Actor,
   requestId: string,
   patch: Record<string, unknown>,
@@ -365,6 +366,20 @@ export async function updateRequest(
   if (!["customs_clearance", "returned_for_correction"].includes(request.status)) {
     throw new AppError(409, "LOCKED", "This request can no longer be edited");
   }
+
+  const resubmit = patch.resubmit === true;
+  if (resubmit && request.status !== "returned_for_correction") {
+    throw new AppError(
+      409,
+      "INVALID_TRANSITION",
+      "Only requests returned for correction can be resubmitted",
+    );
+  }
+
+  // Save field corrections without forcing resubmit while still returned.
+  const keepReturned = request.status === "returned_for_correction" && !resubmit;
+  const nextStatus = keepReturned ? "returned_for_correction" : "customs_clearance";
+
   await sql.query(
     `UPDATE transport_requests SET
       port_code = COALESCE($2, port_code),
@@ -377,12 +392,13 @@ export async function updateRequest(
       expected_delivery_at = COALESCE($9, expected_delivery_at),
       instructions = COALESCE($10, instructions),
       proposed_price = COALESCE($11, proposed_price),
-      status = 'customs_clearance',
-      broker_ready_at = NULL,
-      external_payment_confirmed = false,
-      permits_confirmed = false,
-      approved_price = NULL,
-      returned_reason = NULL
+      status = $12,
+      broker_ready_at = CASE WHEN $13 THEN NULL ELSE broker_ready_at END,
+      broker_ready_by = CASE WHEN $13 THEN NULL ELSE broker_ready_by END,
+      external_payment_confirmed = CASE WHEN $13 THEN false ELSE external_payment_confirmed END,
+      permits_confirmed = CASE WHEN $13 THEN false ELSE permits_confirmed END,
+      approved_price = CASE WHEN $13 THEN NULL ELSE approved_price END,
+      returned_reason = CASE WHEN $13 THEN NULL ELSE returned_reason END
      WHERE id = $1`,
     [
       requestId,
@@ -396,8 +412,33 @@ export async function updateRequest(
       patch.expectedDeliveryAt ?? null,
       patch.instructions ?? null,
       patch.proposedPrice ?? null,
+      nextStatus,
+      !keepReturned,
     ],
   );
+
+  if (resubmit) {
+    await recordStatus(sql, {
+      entityType: "request",
+      entityId: requestId,
+      requestId,
+      previous: request.status,
+      next: "customs_clearance",
+      actorId: actor.id,
+      reason: "Merchant resubmitted corrections",
+    });
+    const brokers = await orgUsers(sql, request.brokerOrgId, "customs_broker");
+    await notify(sql, config, {
+      userIds: brokers,
+      type: "request_resubmitted",
+      titleEn: "Request resubmitted after correction",
+      titleAr: "أُعيد إرسال الطلب بعد التصحيح",
+      bodyEn: `${request.reference} was corrected and returned to customs clearance.`,
+      bodyAr: `تم تصحيح ${request.reference} وإعادته إلى التخليص الجمركي.`,
+      data: { requestId },
+      dedupeKey: `resubmit:${requestId}:${Date.now()}`,
+    });
+  }
 }
 
 export async function cancelRequest(sql: Sql, actor: Actor, requestId: string, reason?: string) {

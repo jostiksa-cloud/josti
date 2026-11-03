@@ -13,6 +13,19 @@ const MAX_BYTES = 10 * 1024 * 1024;
 const IMAGE_TYPES = new Set(["loading_photo"]);
 const ALLOWED_MIME = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
 
+/** Strip path segments and control characters from user-supplied filenames. */
+export function sanitizeFilename(name: string): string {
+  const base = name.replace(/\\/g, "/").split("/").pop() ?? "upload";
+  let cleaned = "";
+  for (const char of base) {
+    const code = char.charCodeAt(0);
+    if (code < 32 || code === 127 || '<>:"|?*'.includes(char)) cleaned += "_";
+    else cleaned += char;
+  }
+  cleaned = cleaned.trim().slice(0, 180) || "upload";
+  return cleaned.startsWith(".") ? `file${cleaned}` : cleaned;
+}
+
 export function detectFile(bytes: Uint8Array, declared: string): string | null {
   if (bytes.length < 12 || bytes.length > MAX_BYTES) return null;
   const pdf = bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
@@ -277,7 +290,7 @@ export async function createDocument(
       input.incidentId ?? null,
       input.docType,
       key,
-      input.filename.slice(0, 180),
+      sanitizeFilename(input.filename),
       mime,
       input.bytes.byteLength,
       digest,

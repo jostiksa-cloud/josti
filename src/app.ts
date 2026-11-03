@@ -45,15 +45,6 @@ import {
 import { AppError } from "./lib/errors";
 import { log } from "./logger";
 import { hasPermission, requirePermission } from "./services/access";
-import {
-  createIntegration,
-  deleteIntegration,
-  integrationCreateSchema,
-  integrationPatchSchema,
-  listIntegrations,
-  resolveRuntimeConfig,
-  updateIntegration,
-} from "./services/integrations.service";
 import { assertFinance, setAccountStatus, setAdminPermissions } from "./services/admin.service";
 import {
   loadAccount,
@@ -87,6 +78,15 @@ import {
   reviewDocument,
   saveAvatar,
 } from "./services/documents.service";
+import {
+  createIntegration,
+  deleteIntegration,
+  integrationCreateSchema,
+  integrationPatchSchema,
+  listIntegrations,
+  resolveRuntimeConfig,
+  updateIntegration,
+} from "./services/integrations.service";
 import {
   brokerClearance,
   cancelRequest,
@@ -264,7 +264,7 @@ export function createApp(sql: Sql, config: AppConfig) {
     cookies(c, config, session.accessToken, session.refreshToken);
     return c.json({ data: session });
   });
-  api.post("/auth/refresh", async (c) => {
+  api.post("/auth/refresh", rateLimit(30, 60_000), async (c) => {
     const body = await c.req.json().catch(() => ({}) as { refreshToken?: string });
     const token = body.refreshToken ?? getCookie(c, "josti_refresh");
     if (!token) throw new AppError(401, "SESSION_EXPIRED", "Sign in again");
@@ -285,15 +285,19 @@ export function createApp(sql: Sql, config: AppConfig) {
   });
   api.post("/auth/forgot-password", rateLimit(5, 60_000), async (c) => {
     const input = await readJson(c, forgotPasswordSchema);
+    const started = Date.now();
     const result = await requestPasswordReset(sql, config, input.email);
+    // Reduce timing enumeration between known and unknown emails.
+    const elapsed = Date.now() - started;
+    if (elapsed < 200) await Bun.sleep(200 - elapsed);
     return c.json({
       data: {
         message: "If the account exists, password recovery has been initiated.",
-        devToken: result.devToken,
+        ...(result.devToken ? { devToken: result.devToken } : {}),
       },
     });
   });
-  api.post("/auth/reset-password", async (c) => {
+  api.post("/auth/reset-password", rateLimit(10, 60_000), async (c) => {
     const input = await readJson(c, resetPasswordSchema);
     await resetPassword(sql, config, input.token, input.password);
     return c.json({ data: { reset: true } });
@@ -309,7 +313,8 @@ export function createApp(sql: Sql, config: AppConfig) {
     const actor = requireActor(c);
     const form = await c.req.parseBody();
     const file = form.file;
-    if (!(file instanceof File)) throw new AppError(422, "INVALID_FILE", "Choose a profile picture");
+    if (!(file instanceof File))
+      throw new AppError(422, "INVALID_FILE", "Choose a profile picture");
     await saveAvatar(
       sql,
       config,
@@ -384,7 +389,8 @@ export function createApp(sql: Sql, config: AppConfig) {
     }
     const docType = parsedType.data;
     const bytes = new Uint8Array(await file.arrayBuffer());
-    const field = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null);
+    const field = (value: unknown) =>
+      typeof value === "string" && value.trim() ? value.trim() : null;
     const requestId = field(form.requestId);
     const tripId = field(form.tripId);
     if (requestId) {
@@ -432,7 +438,8 @@ export function createApp(sql: Sql, config: AppConfig) {
     return new Response(bytes, {
       headers: {
         "Content-Type": doc.mimeType,
-        "Content-Disposition": `attachment; filename="${encodeURIComponent(doc.originalFilename)}"`,
+        "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(doc.originalFilename)}`,
+        "X-Content-Type-Options": "nosniff",
         "Cache-Control": "private, no-store",
       },
     });
@@ -483,6 +490,7 @@ export function createApp(sql: Sql, config: AppConfig) {
   api.patch("/requests/:id", async (c) => {
     await updateRequest(
       sql,
+      config,
       requireActor(c),
       c.req.param("id"),
       await readJson(c, updateRequestSchema),

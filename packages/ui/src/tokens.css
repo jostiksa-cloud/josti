@@ -1,0 +1,130 @@
+/* JOSTI design tokens — sourced from UI/UX offline prototype */
+
+@font-face {
+  font-family: Tajawal;
+  src: url("/brand/tajawal-arabic-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: Tajawal;
+  src: url("/brand/tajawal-arabic-700-normal.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("/brand/plus-jakarta-sans-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("/brand/plus-jakarta-sans-latin-700-normal.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+
+:root {
+  --brand: #2e1748;
+  --cyan: #32d5e7;
+  --bg: #f3f5fa;
+  --paper: #ffffff;
+  --ink: #231833;
+  --muted: #7b7489;
+  --line: #e8e5ee;
+  --soft: #f5f1fb;
+  --green: #168663;
+  --amber: #b57a13;
+  --red: #a33b4a;
+  --shadow: 0 8px 30px #2e174808;
+  --rad: 20px;
+  --sidebar-w: 260px;
+  --topbar-h: 72px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 22px;
+  --space-6: 28px;
+  --touch: 44px;
+  --bp-sm: 560px;
+  --bp-md: 780px;
+  --bp-lg: 1024px;
+}
+
+body.dark {
+  --bg: #171024;
+  --paper: #241934;
+  --ink: #f1eafb;
+  --muted: #b2a7c3;
+  --line: #3a2a4c;
+  --soft: #30213f;
+  --shadow: 0 8px 30px #0002;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at 100% 0, #32d5e714, transparent 28%), var(--bg);
+  color: var(--ink);
+  font: 14px/1.7 Tajawal, "Plus Jakarta Sans", sans-serif;
+  overflow-x: clip;
+}
+
+body.ltr {
+  font-family: "Plus Jakarta Sans", Tajawal, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+a {
+  color: inherit;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 25px;
+  line-height: 1.5;
+}
+
+h2 {
+  font-size: 18px;
+}
+
+h3 {
+  font-size: 14px;
+}
+
+small {
+  font-size: 11px;
+}

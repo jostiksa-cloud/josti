@@ -1,0 +1,47 @@
+[
+  {
+    "file": "C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\web_map_375.png",
+    "status": 0,
+    "stderr": "43462 bytes written to file C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\web_map_375.png\r\n[28668:40880:1031/022104.339:ERROR:chrome\\browser\\web_applications\\externally_managed_app_manager.cc:680]"
+  },
+  {
+    "file": "C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\web_map_768.png",
+    "status": 0,
+    "stderr": "147545 bytes written to file C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\web_map_768.png\r\n[30420:18512:1031/022108.592:ERROR:chrome\\browser\\web_applications\\externally_managed_app_manager.cc:680"
+  },
+  {
+    "file": "C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\web_map_1440.png",
+    "status": 0,
+    "stderr": "214288 bytes written to file C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\web_map_1440.png\r\n[33448:14116:1031/022113.062:ERROR:chrome\\browser\\web_applications\\externally_managed_app_manager.cc:68"
+  },
+  {
+    "file": "C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\web_login_375.png",
+    "status": 0,
+    "stderr": "24568 bytes written to file C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\web_login_375.png\r\n"
+  },
+  {
+    "file": "C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\web_login_768.png",
+    "status": 0,
+    "stderr": "55277 bytes written to file C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\web_login_768.png\r\n"
+  },
+  {
+    "file": "C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\web_login_1440.png",
+    "status": 0,
+    "stderr": "82871 bytes written to file C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\web_login_1440.png\r\n"
+  },
+  {
+    "file": "C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\admin_login_375.png",
+    "status": 0,
+    "stderr": "17680 bytes written to file C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\admin_login_375.png\r\n"
+  },
+  {
+    "file": "C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\admin_login_768.png",
+    "status": 0,
+    "stderr": "51279 bytes written to file C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\admin_login_768.png\r\n"
+  },
+  {
+    "file": "C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\admin_login_1440.png",
+    "status": 0,
+    "stderr": "64625 bytes written to file C:\\Users\\admin\\Downloads\\JOSTI\\docs\\visual-checks\\admin_login_1440.png\r\n"
+  }
+]

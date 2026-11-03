@@ -837,7 +837,10 @@ async function makeFinanceAdmin() {
 test("administrators can save integration data without revealing secrets", async () => {
   const listed = await api(app, "GET", "/api/v1/admin/integrations", { token: adminToken });
   expect(listed.status).toBe(200);
-  const rows = listed.json.data as Array<{ code: string; fields: Array<{ key: string; secret: boolean; value: string }> }>;
+  const rows = listed.json.data as Array<{
+    code: string;
+    fields: Array<{ key: string; secret: boolean; value: string }>;
+  }>;
   expect(rows.some((row) => row.code === "map")).toBe(true);
   const saved = await api(app, "PATCH", "/api/v1/admin/integrations/fcm", {
     token: adminToken,
@@ -848,9 +851,11 @@ test("administrators can save integration data without revealing secrets", async
     },
   });
   expect(saved.status).toBe(200);
-  const secret = (saved.json.data as { fields: Array<{ key: string; value: string; configured: boolean; hint: string }> }).fields.find(
-    (field) => field.key === "serverKey",
-  );
+  const secret = (
+    saved.json.data as {
+      fields: Array<{ key: string; value: string; configured: boolean; hint: string }>;
+    }
+  ).fields.find((field) => field.key === "serverKey");
   expect(secret?.value).toBe("");
   expect(secret?.configured).toBe(true);
   expect(secret?.hint.endsWith("key")).toBe(true);
@@ -869,7 +874,9 @@ test("administrators can save integration data without revealing secrets", async
   });
   expect(created.status).toBe(201);
   const code = (created.json.data as { code: string }).code;
-  const removed = await api(app, "DELETE", `/api/v1/admin/integrations/${code}`, { token: adminToken });
+  const removed = await api(app, "DELETE", `/api/v1/admin/integrations/${code}`, {
+    token: adminToken,
+  });
   expect(removed.status).toBe(200);
   const builtin = await api(app, "DELETE", "/api/v1/admin/integrations/map", { token: adminToken });
   expect(builtin.status).toBe(404);

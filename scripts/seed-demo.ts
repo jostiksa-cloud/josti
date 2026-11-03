@@ -1,3 +1,5 @@
+export {};
+
 const API = process.env.API_PUBLIC_URL?.replace(/\/$/, "") || "http://127.0.0.1:3000";
 const PASSWORD = "Password123";
 const PNG = Uint8Array.from(
@@ -9,7 +11,13 @@ const PNG = Uint8Array.from(
 
 type Json = Record<string, unknown>;
 
-async function call(method: string, path: string, token: string | null, json?: unknown, form?: FormData): Promise<Json> {
+async function call(
+  method: string,
+  path: string,
+  token: string | null,
+  json?: unknown,
+  form?: FormData,
+): Promise<Json> {
   const headers = new Headers();
   if (token) headers.set("authorization", `Bearer ${token}`);
   let body: string | FormData | undefined;
@@ -229,10 +237,20 @@ async function main() {
     },
   });
 
-  for (const docType of ["commercial_registration", "tax_identification", "national_address", "iban_certificate"]) {
+  for (const docType of [
+    "commercial_registration",
+    "tax_identification",
+    "national_address",
+    "iban_certificate",
+  ]) {
     await upload(merchant.token, docType);
   }
-  for (const docType of ["customs_clearance_license", "office_commercial_registration", "fasah_account_evidence", "broker_national_address"]) {
+  for (const docType of [
+    "customs_clearance_license",
+    "office_commercial_registration",
+    "fasah_account_evidence",
+    "broker_national_address",
+  ]) {
     await upload(broker.token, docType);
   }
   await approvePending(admin.token);
@@ -240,7 +258,13 @@ async function main() {
   await activate(admin.token, broker.id);
   await activate(admin.token, carrier.id);
 
-  const vehicleDocs = ["vehicle_registration", "vehicle_operating_card", "operating_license", "insurance", "periodic_inspection"];
+  const vehicleDocs = [
+    "vehicle_registration",
+    "vehicle_operating_card",
+    "operating_license",
+    "insurance",
+    "periodic_inspection",
+  ];
   const driverDocs = ["driver_license", "residence_permit", "passport"];
 
   const truck = await call("POST", "/api/v1/vehicles", carrier.token, {
@@ -271,8 +295,10 @@ async function main() {
   });
   const indieVehicleId = String(indieTruck.id);
   const indieDriverId = String(indieProfile.driverId);
-  for (const docType of vehicleDocs) await upload(indieProfile.token, docType, { vehicleId: indieVehicleId });
-  for (const docType of driverDocs) await upload(indieProfile.token, docType, { driverId: indieDriverId });
+  for (const docType of vehicleDocs)
+    await upload(indieProfile.token, docType, { vehicleId: indieVehicleId });
+  for (const docType of driverDocs)
+    await upload(indieProfile.token, docType, { driverId: indieDriverId });
 
   await approvePending(admin.token);
   for (const [path, id] of [
@@ -286,11 +312,22 @@ async function main() {
   await activate(admin.token, driverUserId);
   await activate(admin.token, indie.id);
   await call("POST", "/api/v1/assignments", carrier.token, { vehicleId, driverId });
-  await call("POST", "/api/v1/assignments", indieProfile.token, { vehicleId: indieVehicleId, driverId: indieDriverId });
-  await call("PATCH", `/api/v1/vehicles/${vehicleId}/availability`, carrier.token, { availability: "available" });
-  await call("PATCH", `/api/v1/drivers/${driverId}/availability`, carrier.token, { availability: "available" });
-  await call("PATCH", `/api/v1/vehicles/${indieVehicleId}/availability`, indieProfile.token, { availability: "available" });
-  await call("PATCH", `/api/v1/drivers/${indieDriverId}/availability`, indieProfile.token, { availability: "available" });
+  await call("POST", "/api/v1/assignments", indieProfile.token, {
+    vehicleId: indieVehicleId,
+    driverId: indieDriverId,
+  });
+  await call("PATCH", `/api/v1/vehicles/${vehicleId}/availability`, carrier.token, {
+    availability: "available",
+  });
+  await call("PATCH", `/api/v1/drivers/${driverId}/availability`, carrier.token, {
+    availability: "available",
+  });
+  await call("PATCH", `/api/v1/vehicles/${indieVehicleId}/availability`, indieProfile.token, {
+    availability: "available",
+  });
+  await call("PATCH", `/api/v1/drivers/${indieDriverId}/availability`, indieProfile.token, {
+    availability: "available",
+  });
 
   const merchantSession = await login("merchant@josti.test", PASSWORD);
   const brokerSession = await login("broker@josti.test", PASSWORD);
@@ -299,14 +336,20 @@ async function main() {
     isDefault: true,
   });
 
-  async function openRequest(containerNumber: string, destination: string, portCode: string, price: number) {
+  async function openRequest(
+    containerNumber: string,
+    destination: string,
+    portCode: string,
+    price: number,
+  ) {
     return call("POST", "/api/v1/requests", merchantSession.token, {
       useDefaultBroker: true,
       portCode,
       containerNumber,
       containerType: "40ft",
       truckType: portCode === "DMM" ? "flatbed" : "container_chassis",
-      loadingLocation: portCode === "DMM" ? "King Abdulaziz Port, gate 2" : "Jeddah Islamic Port, gate 3",
+      loadingLocation:
+        portCode === "DMM" ? "King Abdulaziz Port, gate 2" : "Jeddah Islamic Port, gate 3",
       destination,
       scheduledLoadingAt: hoursFromNow(6),
       expectedDeliveryAt: hoursFromNow(30),
@@ -345,10 +388,15 @@ async function main() {
     const request = await openRequest(containerNumber, destination, "JED", price);
     const requestId = String(request.id);
     await clearAndRelease(requestId, price + 400);
-    const response = await call("POST", `/api/v1/requests/${requestId}/responses`, carrierSession.token, {
-      vehicleId,
-      driverId,
-    });
+    const response = await call(
+      "POST",
+      `/api/v1/requests/${requestId}/responses`,
+      carrierSession.token,
+      {
+        vehicleId,
+        driverId,
+      },
+    );
     const trip = await call("POST", `/api/v1/requests/${requestId}/select`, merchantSession.token, {
       responseId: String(response.id),
     });
@@ -357,11 +405,15 @@ async function main() {
 
   const closedTripId = await confirmTrip("HLCU3000003", "Riyadh, Al Aziziyah warehouse", 2600);
   for (const status of ["arrived_at_port"]) {
-    await call("POST", `/api/v1/trips/${closedTripId}/transition`, driver.token, { toStatus: status });
+    await call("POST", `/api/v1/trips/${closedTripId}/transition`, driver.token, {
+      toStatus: status,
+    });
   }
   await upload(driver.token, "loading_photo", { tripId: closedTripId });
   for (const status of ["loaded", "trip_started", "in_transit", "arrived_at_destination"]) {
-    await call("POST", `/api/v1/trips/${closedTripId}/transition`, driver.token, { toStatus: status });
+    await call("POST", `/api/v1/trips/${closedTripId}/transition`, driver.token, {
+      toStatus: status,
+    });
   }
   await upload(driver.token, "delivery_note", { tripId: closedTripId });
   await call("POST", `/api/v1/trips/${closedTripId}/transition`, driver.token, {
@@ -369,7 +421,9 @@ async function main() {
     recipientName: "Noura Saleh",
     deliveredAt: new Date().toISOString(),
   });
-  await call("POST", `/api/v1/trips/${closedTripId}/transition`, admin.token, { toStatus: "closed" });
+  await call("POST", `/api/v1/trips/${closedTripId}/transition`, admin.token, {
+    toStatus: "closed",
+  });
   await call("POST", `/api/v1/trips/${closedTripId}/ratings`, merchantSession.token, {
     tripId: closedTripId,
     targetRole: "carrier",
@@ -383,10 +437,14 @@ async function main() {
   });
 
   const liveTripId = await confirmTrip("OOLU4000004", "Riyadh, Al Kharj road warehouse 4", 3200);
-  await call("POST", `/api/v1/trips/${liveTripId}/transition`, driver.token, { toStatus: "arrived_at_port" });
+  await call("POST", `/api/v1/trips/${liveTripId}/transition`, driver.token, {
+    toStatus: "arrived_at_port",
+  });
   await upload(driver.token, "loading_photo", { tripId: liveTripId });
   for (const status of ["loaded", "trip_started", "in_transit"]) {
-    await call("POST", `/api/v1/trips/${liveTripId}/transition`, driver.token, { toStatus: status });
+    await call("POST", `/api/v1/trips/${liveTripId}/transition`, driver.token, {
+      toStatus: status,
+    });
   }
   await call("POST", "/api/v1/tracking", driver.token, {
     tripId: liveTripId,

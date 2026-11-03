@@ -28,6 +28,12 @@
       "correctness": {
         "useExhaustiveDependencies": "off",
         "noUnsafeOptionalChaining": "off"
+      },
+      "a11y": {
+        "useSemanticElements": "warn",
+        "noLabelWithoutControl": "warn",
+        "useKeyWithClickEvents": "warn",
+        "noStaticElementInteractions": "warn"
       }
     }
   },

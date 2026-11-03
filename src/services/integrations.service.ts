@@ -39,14 +39,32 @@ const BUILTIN_FIELDS: Record<string, FieldDef[]> = {
   ],
   fcm: [
     { key: "endpoint", kind: "text", secret: false, labelEn: "Endpoint", labelAr: "نقطة الإرسال" },
-    { key: "serverKey", kind: "secret", secret: true, labelEn: "Server key", labelAr: "مفتاح الخادم" },
+    {
+      key: "serverKey",
+      kind: "secret",
+      secret: true,
+      labelEn: "Server key",
+      labelAr: "مفتاح الخادم",
+    },
   ],
   apns: [
     { key: "keyId", kind: "text", secret: false, labelEn: "Key id", labelAr: "معرف المفتاح" },
     { key: "teamId", kind: "text", secret: false, labelEn: "Team id", labelAr: "معرف الفريق" },
     { key: "bundleId", kind: "text", secret: false, labelEn: "Bundle id", labelAr: "معرف التطبيق" },
-    { key: "production", kind: "boolean", secret: false, labelEn: "Production", labelAr: "بيئة الإنتاج" },
-    { key: "privateKey", kind: "secret", secret: true, labelEn: "Private key", labelAr: "المفتاح الخاص" },
+    {
+      key: "production",
+      kind: "boolean",
+      secret: false,
+      labelEn: "Production",
+      labelAr: "بيئة الإنتاج",
+    },
+    {
+      key: "privateKey",
+      kind: "secret",
+      secret: true,
+      labelEn: "Private key",
+      labelAr: "المفتاح الخاص",
+    },
   ],
   smtp: [
     { key: "host", kind: "text", secret: false, labelEn: "Host", labelAr: "الخادم" },
@@ -57,7 +75,13 @@ const BUILTIN_FIELDS: Record<string, FieldDef[]> = {
   ],
   storage: [
     { key: "url", kind: "text", secret: false, labelEn: "Project URL", labelAr: "رابط المشروع" },
-    { key: "bucket", kind: "text", secret: false, labelEn: "Private bucket", labelAr: "حاوية خاصة" },
+    {
+      key: "bucket",
+      kind: "text",
+      secret: false,
+      labelEn: "Private bucket",
+      labelAr: "حاوية خاصة",
+    },
     {
       key: "serviceRoleKey",
       kind: "secret",
@@ -250,7 +274,8 @@ function normalizePublic(code: string, input: Json) {
     const value = text(raw);
     if (!value) continue;
     if (code === "map" && key === "tileUrl") output[key] = cleanTileUrl(value);
-    else if (code === "map" && key === "attribution") output[key] = value.replace(/<[^>]*>/g, "").slice(0, 200);
+    else if (code === "map" && key === "attribution")
+      output[key] = value.replace(/<[^>]*>/g, "").slice(0, 200);
     else if ((code === "fcm" && key === "endpoint") || (code === "storage" && key === "url"))
       output[key] = httpsUrl(value, field.labelEn);
     else if (code === "smtp" && key === "from" && !value.includes("@"))
@@ -277,7 +302,9 @@ export async function updateIntegration(
   code: string,
   input: IntegrationPatch,
 ) {
-  const rows = await sql.query<IntegrationRow>(`SELECT * FROM integrations WHERE code = $1`, [code]);
+  const rows = await sql.query<IntegrationRow>(`SELECT * FROM integrations WHERE code = $1`, [
+    code,
+  ]);
   const row = rows[0];
   if (!row) throw new AppError(404, "NOT_FOUND", "This integration was not found");
   const endpoint = text(input.endpoint);
@@ -314,11 +341,15 @@ export async function updateIntegration(
       JSON.stringify({
         enabled: input.enabled,
         publicKeys: Object.keys(publicConfig),
-        secretsUpdated: Object.keys(input.secrets ?? {}).filter((key) => text(input.secrets?.[key])),
+        secretsUpdated: Object.keys(input.secrets ?? {}).filter((key) =>
+          text(input.secrets?.[key]),
+        ),
       }),
     ],
   );
-  const next = await sql.query<IntegrationRow>(`SELECT * FROM integrations WHERE code = $1`, [code]);
+  const next = await sql.query<IntegrationRow>(`SELECT * FROM integrations WHERE code = $1`, [
+    code,
+  ]);
   return next[0];
 }
 
@@ -421,6 +452,10 @@ export async function resolveRuntimeConfig(sql: Sql, config: AppConfig): Promise
     supabaseUrl: storageReady ? supabaseUrl : config.supabaseUrl,
     supabaseServiceKey: storageReady ? supabaseKey : config.supabaseServiceKey,
     supabaseBucket,
-    storageMode: storageReady ? "supabase" : config.storageMode === "supabase" && storageOn ? "supabase" : "local",
+    storageMode: storageReady
+      ? "supabase"
+      : config.storageMode === "supabase" && storageOn
+        ? "supabase"
+        : "local",
   };
 }

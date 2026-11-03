@@ -215,10 +215,16 @@ export const createRequestSchema = z.object({
   proposedPrice: z.number().positive().max(1_000_000).optional(),
 });
 
-export const updateRequestSchema = createRequestSchema.partial().omit({
-  useDefaultBroker: true,
-  brokerOrganizationId: true,
-});
+export const updateRequestSchema = createRequestSchema
+  .partial()
+  .omit({
+    useDefaultBroker: true,
+    brokerOrganizationId: true,
+  })
+  .extend({
+    /** When true and status is returned_for_correction, resubmit to customs_clearance. */
+    resubmit: z.boolean().optional(),
+  });
 
 export const brokerClearanceSchema = z.object({
   progressNote: z.string().max(2000).optional(),

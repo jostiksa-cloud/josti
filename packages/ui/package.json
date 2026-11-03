@@ -1,0 +1,12 @@
+{
+  "name": "@josti/ui",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tokens.css": "./src/tokens.css",
+    "./layout.css": "./src/layout.css",
+    "./components.css": "./src/components.css",
+    "./*": "./src/*"
+  }
+}

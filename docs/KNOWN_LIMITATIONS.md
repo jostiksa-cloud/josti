@@ -1,6 +1,7 @@
 # Known limitations
 
 - No Supabase project was available. Local runs use PGlite. Production requires the operator to supply PostgreSQL and, if desired, Supabase Storage.
+- Migration `005_demo_data.sql` is skipped automatically when `NODE_ENV=test` (or `JOSTI_SKIP_DEMO_DATA=1`) so automated journey tests register clean accounts. Apply it for local demos with `bun run db:migrate` outside test mode, or use `bun run seed:demo`.
 - Password-reset email is stored and logged only when `ALLOW_DEV_RESET_TOKEN=true` outside production. SMTP delivery is not sent by an in-process mailer; configure an external delivery process before relying on recovery in production.
 - Push delivery was verified against a local mock provider, not Apple or Google. Real delivery needs APNs and FCM credentials and a physical device.
 - iOS and Android JavaScript bundles were exported on Windows. A signed device binary was not produced. iOS native builds require macOS. Android device builds require the Android SDK or EAS.

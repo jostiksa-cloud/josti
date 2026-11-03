@@ -2,8 +2,8 @@ import { type ReactNode, useEffect, useState } from "react";
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer } from "react-leaflet";
 import {
   Link,
-  NavLink,
   Navigate,
+  NavLink,
   Route,
   Routes,
   useLocation,
@@ -12,6 +12,14 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import { ApiError, api, type Row, text } from "./api";
+import {
+  DEMO_TRUCKS,
+  SchematicMap,
+  apiTrucksToSchematic,
+  toSchematicStatus,
+} from "./components/SchematicMap";
+import { ProtoIcon } from "./components/ProtoIcon";
+import { Modal } from "./components/Modal";
 
 type Lang = "ar" | "en";
 const tx = (lang: Lang, ar: string, en: string) => (lang === "ar" ? ar : en);
@@ -26,12 +34,18 @@ const statusNames: Record<string, [string, string]> = {
   en_route_to_port: ["إلى الميناء", "En route to port"],
   ready_for_admin_review: ["بانتظار الإفراج", "Ready for release"],
   customs_clearance: ["قيد التخليص", "Customs clearance"],
+  returned_for_correction: ["معاد للتصحيح", "Returned for correction"],
+  released_to_carriers: ["مُفرج للناقلين", "Released to carriers"],
+  carrier_selected: ["تم اختيار الناقل", "Carrier selected"],
+  new_request: ["طلب جديد", "New request"],
   candidate_responses: ["مرشحون", "Candidates"],
   trip_confirmed: ["رحلة مؤكدة", "Trip confirmed"],
   completed: ["مكتمل", "Completed"],
   cancelled: ["ملغى", "Cancelled"],
   released: ["مُفرج", "Released"],
   draft: ["مسودة", "Draft"],
+  request_returned: ["أُعيد للتصحيح", "Returned for correction"],
+  request_resubmitted: ["أُعيد بعد التصحيح", "Resubmitted after correction"],
   trip_status: ["تحديث الرحلة", "Trip update"],
   document_review: ["مراجعة مستند", "Document review"],
   request_created: ["طلب جديد", "New request"],
@@ -129,11 +143,27 @@ export function App() {
       <Routes>
         <Route
           path="/login"
-          element={<Login lang={lang} setLang={setLang} dark={dark} setDark={setDark} onAuth={setAccount} />}
+          element={
+            <Login
+              lang={lang}
+              setLang={setLang}
+              dark={dark}
+              setDark={setDark}
+              onAuth={setAccount}
+            />
+          }
         />
         <Route
           path="/register"
-          element={<Register lang={lang} setLang={setLang} dark={dark} setDark={setDark} onAuth={setAccount} />}
+          element={
+            <Register
+              lang={lang}
+              setLang={setLang}
+              dark={dark}
+              setDark={setDark}
+              onAuth={setAccount}
+            />
+          }
         />
       </Routes>
     );
@@ -150,7 +180,13 @@ export function App() {
       <Routes>
         <Route
           path="/"
-          element={account ? <Dashboard lang={lang} account={account} /> : <Home lang={lang} />}
+          element={
+            account ? (
+              <Dashboard lang={lang} account={account} />
+            ) : (
+              <Home lang={lang} account={account} />
+            )
+          }
         />
         <Route path="/map" element={<Home lang={lang} account={account} />} />
         <Route path="/requests" element={<Requests lang={lang} account={account} />} />
@@ -161,7 +197,10 @@ export function App() {
         <Route path="/trips/:id" element={<TripDetail lang={lang} account={account} />} />
         <Route path="/documents" element={<Documents lang={lang} account={account} />} />
         <Route path="/notifications" element={<Notifications lang={lang} account={account} />} />
-        <Route path="/notifications/:id" element={<NotificationDetail lang={lang} account={account} />} />
+        <Route
+          path="/notifications/:id"
+          element={<NotificationDetail lang={lang} account={account} />}
+        />
         <Route
           path="/profile"
           element={<Profile lang={lang} account={account} setAccount={setAccount} />}
@@ -240,37 +279,48 @@ function Shell({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const nav = useNavigate();
   const role = text(account?.role);
   const items = menuFor(lang, role);
+  const persona = text(account?.fullName) || tx(lang, "زائر", "Visitor");
+  const roleLabel = !role
+    ? tx(lang, "زائر", "Guest")
+    : role === "customs_broker"
+      ? tx(lang, "المخلص الجمركي", "Customs broker")
+      : role === "merchant"
+        ? tx(lang, "التاجر", "Merchant")
+        : role === "carrier"
+          ? tx(lang, "الناقل", "Carrier")
+          : role === "driver"
+            ? tx(lang, "السائق", "Driver")
+            : role;
   return (
     <div className="app">
       {open ? (
         <button
           className="backdrop"
           type="button"
-          aria-label="Close"
+          aria-label={tx(lang, "إغلاق القائمة", "Close menu")}
           onClick={() => setOpen(false)}
         />
       ) : null}
-      <aside className={open ? "side open" : "side"}>
-        <div className="brand">
-          <img className="logo" src="/brand/JOSTI_Arabic_Tagline_Reverse.svg" alt="JOSTI" />
-        </div>
+      <aside className={open ? "sidebar open" : "sidebar"}>
+        <img className="logo" src="/brand/JOSTI_Arabic_Tagline_Reverse.svg" alt="JOSTI" />
         <div className="brandline">{tx(lang, "نعرف الطريق", "We know the way")}</div>
         <div className="navlabel">{tx(lang, "مساحة العمل", "WORKSPACE")}</div>
-        <nav>
+        <nav className="nav">
           {items.map(([path, label]) => (
-              <NavLink
-                key={path}
-                to={path ?? "/"}
-                end={path === "/"}
-                className={({ isActive }) => (isActive ? "active" : undefined)}
-                onClick={() => setOpen(false)}
-              >
-                {label}
-              </NavLink>
-            ))}
+            <NavLink
+              key={path}
+              to={path ?? "/"}
+              end={path === "/" || path === "/map"}
+              className={({ isActive }) => (isActive ? "active" : undefined)}
+              onClick={() => setOpen(false)}
+            >
+              {label}
+            </NavLink>
+          ))}
         </nav>
         <div className="side-bottom">
           <div className="sidecard">
@@ -287,13 +337,13 @@ function Shell({
             </p>
             {!account ? (
               <Link to="/register" onClick={() => setOpen(false)}>
-                <button className="cyan sm" type="button" style={{ width: "100%" }}>
+                <button className="btn cyan sm" type="button" style={{ width: "100%" }}>
                   {tx(lang, "انضم إلى جوستي", "Join JOSTI")}
                 </button>
               </Link>
             ) : (
               <Link to="/notifications" onClick={() => setOpen(false)}>
-                <button className="cyan sm" type="button" style={{ width: "100%" }}>
+                <button className="btn cyan sm" type="button" style={{ width: "100%" }}>
                   {tx(lang, "التنبيهات", "Alerts")}
                 </button>
               </Link>
@@ -302,74 +352,140 @@ function Shell({
         </div>
       </aside>
       <main className="main">
-        <div className="top">
-          <button className="ghost menu" type="button" onClick={() => setOpen((value) => !value)}>
-            {tx(lang, "القائمة", "Menu")}
+        <header className="topbar">
+          <button
+            className="round mobilemenu"
+            type="button"
+            aria-label={tx(lang, "القائمة", "Menu")}
+            onClick={() => setOpen((value) => !value)}
+          >
+            <ProtoIcon name="menu" />
           </button>
-          <strong>{text(account?.fullName) || "JOSTI"}</strong>
-          <div className="row">
-            <button className="ghost" type="button" onClick={() => setDark((value) => !value)}>
-              {dark ? tx(lang, "فاتح", "Light") : tx(lang, "داكن", "Dark")}
-            </button>
-            <button
-              className="ghost"
-              type="button"
-              onClick={() => setLang(lang === "ar" ? "en" : "ar")}
-            >
-              {lang === "ar" ? "EN" : "عربي"}
-            </button>
-            {account ? (
-              <button
-                className="ghost"
-                type="button"
-                onClick={async () => {
-                  await api("/auth/logout", { method: "POST", json: {} });
-                  setAccount(null);
+          <div className="search">
+            <ProtoIcon name="search" />
+            <input
+              id="global-search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                if (!account) {
                   nav("/login");
-                }}
-              >
-                {tx(lang, "خروج", "Log out")}
-              </button>
-            ) : (
-              <Link to="/login">
-                <button className="primary" type="button">
-                  {tx(lang, "دخول", "Log in")}
-                </button>
-              </Link>
-            )}
+                  return;
+                }
+                nav(`/requests?q=${encodeURIComponent(search.trim())}`);
+              }}
+              placeholder={tx(lang, "ابحث برقم الطلب أو الحاوية…", "Search request or container...")}
+              aria-label={tx(lang, "بحث", "Search")}
+            />
           </div>
-        </div>
+          <div className="grow" />
+          <div className="role-switch">
+            <ProtoIcon name="users" />
+            <span>{roleLabel}</span>
+          </div>
+          <button
+            className="round"
+            type="button"
+            aria-label="Change language"
+            onClick={() => setLang(lang === "ar" ? "en" : "ar")}
+          >
+            {lang === "ar" ? "EN" : "عربي"}
+          </button>
+          <button
+            className="round"
+            type="button"
+            aria-label="Toggle theme"
+            onClick={() => setDark((value) => !value)}
+          >
+            <ProtoIcon name="moon" />
+          </button>
+          {account ? (
+            <Link to="/notifications" className="round" aria-label={tx(lang, "التنبيهات", "Alerts")}>
+              <ProtoIcon name="bell" />
+            </Link>
+          ) : (
+            <Link to="/login" className="round" aria-label={tx(lang, "التنبيهات", "Alerts")}>
+              <ProtoIcon name="bell" />
+            </Link>
+          )}
+          <div className="row profile-name">
+            <div>
+              <b>{persona}</b>
+              <div className="tiny muted">{roleLabel}</div>
+            </div>
+          </div>
+          {account ? (
+            <Link to="/profile" className="avatar" aria-label={tx(lang, "حسابي", "My account")}>
+              {(text(account.fullName).slice(0, 1) || "J").toUpperCase()}
+            </Link>
+          ) : (
+            <Link to="/login" className="avatar" aria-label={tx(lang, "دخول", "Log in")}>
+              {persona.slice(0, 1)}
+            </Link>
+          )}
+          {account ? (
+            <button
+              className="round"
+              type="button"
+              aria-label={tx(lang, "خروج", "Log out")}
+              onClick={async () => {
+                await api("/auth/logout", { method: "POST", json: {} });
+                setAccount(null);
+                nav("/login");
+              }}
+            >
+              <ProtoIcon name="logout" />
+            </button>
+          ) : (
+            <Link to="/login">
+              <button className="btn cyan sm" type="button">
+                {tx(lang, "دخول", "Log in")}
+              </button>
+            </Link>
+          )}
+        </header>
         {account && text(account.status) !== "active" ? (
-          <div className="err">
-            {tx(
-              lang,
-              "الحساب ليس نشطًا بعد. يمكن رفع المستندات، والعمليات مقيدة حتى التفعيل.",
-              "This account is not active yet. Documents can be uploaded, but operations stay restricted until activation.",
-            )}
+          <div className="demo-banner">
+            <span>
+              <i className="dot" />{" "}
+              {tx(
+                lang,
+                "الحساب ليس نشطًا بعد. يمكن رفع المستندات، والعمليات مقيدة حتى التفعيل.",
+                "This account is not active yet. Documents can be uploaded, but operations stay restricted until activation.",
+              )}
+            </span>
+            <Link to="/documents">
+              <button className="btn ghost sm" type="button">
+                {tx(lang, "المستندات", "Documents")}
+              </button>
+            </Link>
           </div>
         ) : null}
-        {children}
+        <div className="content">{children}</div>
       </main>
     </div>
   );
 }
 
 function menuFor(lang: Lang, role: string): [string, string][] {
-  const dashboard: [string, string] = ["/", tx(lang, "لوحتي", "My dashboard")];
-  const requests: [string, string] = ["/requests", tx(lang, "طلباتي", "My requests")];
-  const trips: [string, string] = ["/trips", tx(lang, "رحلاتي", "My trips")];
-  const fleet: [string, string] = ["/fleet", tx(lang, "أسطولي", "My fleet")];
-  const map: [string, string] = ["/map", tx(lang, "الخريطة", "Port map")];
-  const documents: [string, string] = ["/documents", tx(lang, "مستنداتي", "My documents")];
-  const alerts: [string, string] = ["/notifications", tx(lang, "تنبيهاتي", "My alerts")];
-  const account: [string, string] = ["/profile", tx(lang, "حسابي", "My account")];
-  if (!role) return [map, account];
-  if (role === "driver") return [dashboard, trips, documents, alerts, account];
+  const dashboard: [string, string] = ["/", tx(lang, "لوحة العمل", "Dashboard")];
+  const requests: [string, string] = ["/requests", tx(lang, "الطلبات", "Requests")];
+  const trips: [string, string] = ["/trips", tx(lang, "الرحلات", "Trips")];
+  const fleet: [string, string] = ["/fleet", tx(lang, "الأسطول", "Fleet")];
+  const map: [string, string] = ["/map", tx(lang, "الخريطة", "Map")];
+  const documents: [string, string] = ["/documents", tx(lang, "المستندات", "Documents")];
+  const alerts: [string, string] = ["/notifications", tx(lang, "التنبيهات", "Alerts")];
+  const profile: [string, string] = ["/profile", tx(lang, "الحساب", "Profile")];
+  // Prototype menus + live documents/alerts routes kept reachable
+  if (!role) return [map, profile];
+  if (role === "driver") return [dashboard, trips, documents, alerts, profile];
   if (role === "carrier")
-    return [dashboard, map, ["/requests", tx(lang, "الترشيح", "Candidacy")], trips, fleet, documents, alerts, account];
-  if (role === "customs_broker") return [dashboard, map, requests, trips, documents, alerts, account];
-  if (role === "merchant") return [dashboard, map, requests, trips, documents, alerts, account];
-  return [dashboard, account];
+    return [dashboard, map, requests, trips, fleet, documents, alerts, profile];
+  if (role === "customs_broker")
+    return [dashboard, map, requests, trips, documents, alerts, profile];
+  if (role === "merchant") return [dashboard, map, requests, trips, documents, alerts, profile];
+  return [dashboard, profile];
 }
 
 function Dashboard({ lang, account }: { lang: Lang; account: Row }) {
@@ -414,8 +530,12 @@ function Dashboard({ lang, account }: { lang: Lang; account: Row }) {
     ),
   };
   const recent = role === "driver" || role === "carrier" ? trips : requests;
-  const activeTrips = trips.filter((row) => !["delivered", "closed"].includes(text(row.status))).length;
-  const doneTrips = trips.filter((row) => ["delivered", "closed"].includes(text(row.status))).length;
+  const activeTrips = trips.filter(
+    (row) => !["delivered", "closed"].includes(text(row.status)),
+  ).length;
+  const doneTrips = trips.filter((row) =>
+    ["delivered", "closed"].includes(text(row.status)),
+  ).length;
   return (
     <>
       <div className="breadcrumb">JOSTI / {tx(lang, "لوحة العمل", "Workspace")}</div>
@@ -499,7 +619,11 @@ function Dashboard({ lang, account }: { lang: Lang; account: Row }) {
             <Link
               className="record"
               key={text(row.id)}
-              to={role === "driver" || row.driverId ? `/trips/${text(row.id)}` : `/requests/${text(row.id)}`}
+              to={
+                role === "driver" || row.driverId
+                  ? `/trips/${text(row.id)}`
+                  : `/requests/${text(row.id)}`
+              }
             >
               <div>
                 <strong>{text(row.reference) || text(row.containerNumber)}</strong>
@@ -510,7 +634,9 @@ function Dashboard({ lang, account }: { lang: Lang; account: Row }) {
           ))}
         </div>
       ) : (
-        <p className="muted">{tx(lang, "لا توجد سجلات مرتبطة بهذا الحساب.", "No records are linked to this account.")}</p>
+        <p className="muted">
+          {tx(lang, "لا توجد سجلات مرتبطة بهذا الحساب.", "No records are linked to this account.")}
+        </p>
       )}
     </>
   );
@@ -527,7 +653,10 @@ function useMapTiles() {
     api<Row>("/public/map-style")
       .then((row) => {
         if (text(row.tileUrl))
-          setTiles({ url: text(row.tileUrl), attribution: text(row.attribution) || DEFAULT_TILES.attribution });
+          setTiles({
+            url: text(row.tileUrl),
+            attribution: text(row.attribution) || DEFAULT_TILES.attribution,
+          });
       })
       .catch(() => undefined);
   }, []);
@@ -535,27 +664,45 @@ function useMapTiles() {
 }
 
 function Home({ lang, account }: { lang: Lang; account: Row | null }) {
-  const tiles = useMapTiles();
   const [port, setPort] = useState("JED");
   const [ports, setPorts] = useState<Row[]>([]);
   const [trucks, setTrucks] = useState<Row[]>([]);
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState<"all" | "available" | "waiting" | "trip" | "offline">("all");
   const [error, setError] = useState("");
   const guest = !account;
   useEffect(() => {
     api<Row[]>("/public/ports")
       .then(setPorts)
-      .catch((error: ApiError) => setError(error.message));
+      .catch((caught: ApiError) => setError(caught.message));
   }, []);
   useEffect(() => {
     api<Row[]>(`/public/map?port=${port}`)
       .then(setTrucks)
-      .catch((error: ApiError) => setError(error.message));
+      .catch((caught: ApiError) => setError(caught.message));
   }, [port]);
-  const center = ports.find((item) => item.code === port) ?? { latitude: 21.49, longitude: 39.19 };
-  const visible = trucks.filter(
-    (truck) => filter === "all" || text(truck.availability) === filter,
+  const portRow = ports.find((item) => item.code === port);
+  const portLabel = portRow
+    ? lang === "ar"
+      ? text(portRow.nameAr)
+      : text(portRow.nameEn)
+    : port;
+  const schematic = apiTrucksToSchematic(trucks);
+  const liveNearby = trucks.filter(
+    (item) => filter === "all" || toSchematicStatus(text(item.availability)) === filter,
   );
+  const nearbyRows =
+    liveNearby.length > 0
+      ? liveNearby.slice(0, 5)
+      : DEMO_TRUCKS.filter((item) => filter === "all" || item.status === filter)
+          .slice(0, 5)
+          .map((item, index) => ({
+            vehicleId: item.id,
+            carrierName: item.label,
+            truckType: item.meta ? `${item.meta} ft` : "40",
+            availability: item.status,
+            distanceKm: [2.4, 3.2, 5.8, 7.1, 4.5][index % 5],
+            ratingAvg: [4.9, 4.8, 4.7, 4.8, 4.6][index % 5],
+          }));
   return (
     <>
       <div className="breadcrumb">JOSTI / {tx(lang, "الخريطة", "Map")}</div>
@@ -565,8 +712,8 @@ function Home({ lang, account }: { lang: Lang; account: Row | null }) {
           <p>
             {tx(
               lang,
-              "استكشف الشاحنات حول الموانئ. المواقع تقريبية ولا تعرض أرقام الجوال.",
-              "Explore trucks around the ports. Locations are approximate and phone numbers stay hidden.",
+              "استكشف الشاحنات حول الموانئ، ثم وثّق حسابك لبدء رحلتك.",
+              "Explore trucks around the ports. Verify your account to start.",
             )}
           </p>
         </div>
@@ -585,126 +732,157 @@ function Home({ lang, account }: { lang: Lang; account: Row | null }) {
         ) : null}
       </div>
       {guest ? (
-      <section className="hero" style={{ marginBottom: 4 }}>
-        <div>
-          <span className="eyebrow">JOSTI · {tx(lang, "جوستي", "TRUSTED CONNECTION")}</span>
-          <h1>
-            {tx(
-              lang,
-              "نعرف الطريق. ونربطك بمن يعرفه.",
-              "We know the way. Connect with those who do.",
-            )}
-          </h1>
-          <p>
-            {tx(
-              lang,
-              "منصة سعودية تجمع التاجر والمخلص والناقل في رحلة واضحة، موثقة، وقابلة للتتبع.",
-              "A Saudi platform connecting merchants, brokers and carriers in a verified, visible journey.",
-            )}
-          </p>
-          <div className="row wrap" style={{ marginTop: 14 }}>
-            <Link to="/register">
-              <button className="cyan" type="button">
-                {tx(lang, "إنشاء حساب", "Create account")}
-              </button>
-            </Link>
-            <Link to="/login">
-              <button className="outline" type="button" style={{ color: "white", borderColor: "#ffffff55" }}>
-                {tx(lang, "تسجيل الدخول", "Sign in")}
-              </button>
-            </Link>
+        <section className="hero" style={{ marginBottom: 20 }}>
+          <div>
+            <span className="eyebrow">JOSTI · {tx(lang, "جوستي", "TRUSTED CONNECTION")}</span>
+            <h1>
+              {tx(
+                lang,
+                "نعرف الطريق. ونربطك بمن يعرفه.",
+                "We know the way. Connect with those who do.",
+              )}
+            </h1>
+            <p>
+              {tx(
+                lang,
+                "منصة سعودية تجمع التاجر والمخلص والناقل في رحلة واضحة، موثقة، وقابلة للتتبع.",
+                "A Saudi platform connecting merchants, brokers and carriers in a verified, visible journey.",
+              )}
+            </p>
+            <div className="row wrap" style={{ marginTop: 14 }}>
+              <Link to="/register">
+                <button className="cyan" type="button">
+                  {tx(lang, "إنشاء حساب", "Create account")}
+                </button>
+              </Link>
+              <Link to="/login">
+                <button
+                  className="outline"
+                  type="button"
+                  style={{ color: "white", borderColor: "#ffffff55" }}
+                >
+                  {tx(lang, "استكشاف كتاجر", "Explore as a merchant")}
+                </button>
+              </Link>
+            </div>
           </div>
-        </div>
-        <div className="heroaside">
-          <b>4</b>
-          <span>{tx(lang, "موانئ مدعومة", "Supported ports")}</span>
-          <p className="muted" style={{ color: "#d7c6ea" }}>
-            {tx(lang, "جدة · رابغ · ينبع · الدمام", "Jeddah · Rabigh · Yanbu · Dammam")}
-          </p>
-        </div>
-      </section>
+          <div className="heroaside">
+            <b>4</b>
+            <span>{tx(lang, "موانئ · شبكة واحدة", "Ports · One network")}</span>
+          </div>
+        </section>
       ) : null}
       {error ? <div className="err">{error}</div> : null}
-      <div className="row wrap">
-        {ports.map((item) => (
-          <button
-            key={text(item.code)}
-            className={item.code === port ? "chip active" : "chip"}
-            type="button"
-            onClick={() => setPort(text(item.code))}
-          >
-            {lang === "ar" ? text(item.nameAr) : text(item.nameEn)}
-          </button>
-        ))}
-      </div>
-      <div className="row wrap">
-        {(
-          [
-            ["all", "الكل", "All"],
-            ["available", "متاحة", "Available"],
-            ["waiting", "بانتظار", "Waiting"],
-            ["on_trip", "في رحلة", "On trip"],
-          ] as const
-        ).map(([key, ar, en]) => (
-          <button
-            key={key}
-            className={filter === key ? "chip active" : "chip"}
-            type="button"
-            onClick={() => setFilter(key)}
-          >
-            {tx(lang, ar, en)}
-          </button>
-        ))}
-      </div>
-      <div className="map">
-        <MapContainer
-          key={port}
-          center={[Number(center.latitude), Number(center.longitude)]}
-          zoom={8}
-          style={{ height: "100%" }}
-        >
-          <TileLayer attribution={tiles.attribution} url={tiles.url} />
-          {visible.map((truck) => (
-            <CircleMarker
-              key={text(truck.vehicleId)}
-              center={[Number(truck.latitude), Number(truck.longitude)]}
-              radius={8}
-              pathOptions={{ color: "#2e1748" }}
+      <div className="grid2">
+        <section className="panel pad">
+          <div className="sectionhead wrap">
+            <div className="porttabs">
+              {ports.map((item) => (
+                <button
+                  key={text(item.code)}
+                  className={item.code === port ? "chip active" : "chip"}
+                  type="button"
+                  onClick={() => setPort(text(item.code))}
+                >
+                  {lang === "ar" ? text(item.nameAr) : text(item.nameEn)}
+                </button>
+              ))}
+            </div>
+            <select
+              id="map-filter"
+              className="chip"
+              aria-label="Truck status"
+              value={filter}
+              onChange={(event) =>
+                setFilter(event.target.value as "all" | "available" | "waiting" | "trip" | "offline")
+              }
             >
-              <Popup>
-                <strong>{text(truck.carrierName)}</strong>
-                <div>
-                  {text(truck.truckType)} · {text(truck.availability)}
-                </div>
-                <div>
-                  {tx(lang, "يبعد", "Distance")} {text(truck.distanceKm)} km
-                </div>
-                <div>
-                  {truck.stale
-                    ? tx(lang, "موقع غير محدث", "Stale location")
-                    : tx(lang, "موقع حديث", "Fresh location")}
-                </div>
-              </Popup>
-            </CircleMarker>
-          ))}
-        </MapContainer>
+              <option value="all">{tx(lang, "كل الحالات", "All statuses")}</option>
+              <option value="available">{tx(lang, "متاحة", "Available")}</option>
+              <option value="waiting">{tx(lang, "بانتظار", "Waiting")}</option>
+              <option value="trip">{tx(lang, "في رحلة", "On trip")}</option>
+              <option value="offline">{tx(lang, "غير متاحة", "Unavailable")}</option>
+            </select>
+          </div>
+          <SchematicMap
+            lang={lang}
+            portName={portLabel}
+            filter={filter}
+            trucks={schematic}
+            guest={guest}
+          />
+        </section>
+        <section className="panel pad">
+          <div className="sectionhead">
+            <h2>{tx(lang, "شاحنات قريبة", "Nearby trucks")}</h2>
+            <span className="pill">{nearbyRows.length}</span>
+          </div>
+          <div className="truck-list">
+            {nearbyRows.length === 0 ? (
+              <div className="empty">
+                {tx(
+                  lang,
+                  "لا توجد شاحنات ظاهرة حول هذا الميناء.",
+                  "No trucks are currently shown around this port.",
+                )}
+              </div>
+            ) : (
+              nearbyRows.map((item) => {
+                const status = toSchematicStatus(text(item.availability));
+                const pill =
+                  status === "available" ? "green" : status === "waiting" ? "amber" : "blue";
+                const statusLabel =
+                  status === "available"
+                    ? tx(lang, "متاحة", "Available")
+                    : status === "waiting"
+                      ? tx(lang, "تنتظر", "Waiting")
+                      : status === "trip"
+                        ? tx(lang, "في رحلة", "On trip")
+                        : tx(lang, "غير متاحة", "Unavailable");
+                return (
+                  <div
+                    key={text(item.vehicleId)}
+                    className="truck-card"
+                    tabIndex={0}
+                    role="button"
+                  >
+                    <div className="row">
+                      <div className="truck-icon">
+                        <ProtoIcon name="truck" />
+                      </div>
+                      <div className="grow">
+                        <h3>{text(item.carrierName) || tx(lang, "ناقل موثق", "Verified carrier")}</h3>
+                        <p>
+                          {tx(lang, "سطحة حاويات", "Container flatbed")}
+                          {text(item.truckType) ? ` · ${text(item.truckType)}` : ""}
+                        </p>
+                      </div>
+                      <span className={`pill ${pill}`}>{statusLabel}</span>
+                    </div>
+                    <div className="row between tiny" style={{ marginTop: 10 }}>
+                      <span className="muted">
+                        {text(item.distanceKm) || "—"} {tx(lang, "كم من الميناء", "km from port")}
+                      </span>
+                      <span className="rating">★ {text(item.ratingAvg) || "4.8"}</span>
+                      <span style={{ color: "var(--green)" }}>
+                        ✓ {tx(lang, "موثق", "Verified")}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+          <div className="notice">
+            <ProtoIcon name="eye" />{" "}
+            {tx(
+              lang,
+              "بيانات الاتصال الشخصية لا تظهر في الخريطة العامة.",
+              "Personal contact details are hidden on the public map.",
+            )}
+          </div>
+        </section>
       </div>
-      <p className="notice">
-        {tx(
-          lang,
-          "الخريطة التشغيلية تستخدم مواقع تقريبية للموانئ. لا تُعرض بيانات GPS المحاكاة كإحداثيات دقيقة.",
-          "The operational map uses approximate port positions. Simulated GPS is never shown as precise coordinates.",
-        )}
-      </p>
-      {visible.length === 0 ? (
-        <div className="empty">
-          {tx(
-            lang,
-            "لا توجد شاحنات ظاهرة حول هذا الميناء.",
-            "No trucks are currently shown around this port.",
-          )}
-        </div>
-      ) : null}
     </>
   );
 }
@@ -724,7 +902,7 @@ function Login({
 }) {
   const nav = useNavigate();
   const [role, setRole] = useState<(typeof demoAccounts)[number]["role"]>("merchant");
-  const [email, setEmail] = useState(demoAccounts[0].email);
+  const [email, setEmail] = useState<string>(demoAccounts[0].email);
   const [password, setPassword] = useState(DEMO_PASSWORD);
   const [error, setError] = useState("");
   const selected = demoAccounts.find((account) => account.role === role) ?? demoAccounts[0];
@@ -812,18 +990,18 @@ function Login({
         <p className="demo-note">
           {tx(lang, selected.whoAr, selected.whoEn)} · {selected.email}
           <br />
-          {tx(lang, "كلمة مرور التجربة للحسابات الأربعة:", "Demonstration password for all four accounts:")}{" "}
+          {tx(
+            lang,
+            "كلمة مرور التجربة للحسابات الأربعة:",
+            "Demonstration password for all four accounts:",
+          )}{" "}
           {DEMO_PASSWORD}
         </p>
         <button className="cyan auth-submit" type="submit">
           {tx(lang, "دخول", "Log in")}
         </button>
         <Link className="auth-link" to={`/register?role=${role}`}>
-          {tx(
-            lang,
-            `إنشاء حساب ${selected.ar}`,
-            `Create a ${selected.en.toLowerCase()} account`,
-          )}
+          {tx(lang, `إنشاء حساب ${selected.ar}`, `Create a ${selected.en.toLowerCase()} account`)}
         </Link>
       </form>
     </AuthFrame>
@@ -857,126 +1035,126 @@ function Register({
   const [error, setError] = useState("");
   return (
     <AuthFrame lang={lang} setLang={setLang} dark={dark} setDark={setDark}>
-    <form
-      className="auth-card"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        const form = new FormData(event.currentTarget);
-        const organizationType =
-          role === "merchant"
-            ? "merchant"
-            : role === "customs_broker"
-              ? "broker"
-              : form.get("carrierKind") === "independent"
-                ? "independent_carrier"
-                : "carrier_company";
-        try {
-          await api("/auth/register", {
-            json: {
-              email: form.get("email"),
-              password: form.get("password"),
-              fullName: form.get("fullName"),
-              phone: form.get("phone"),
-              locale: lang,
-              role,
-              organization: {
-                type: organizationType,
-                legalName: form.get("legalName") || form.get("fullName"),
-                nationalAddress: form.get("nationalAddress") || undefined,
-                iban: form.get("iban") || undefined,
-                carrierKind: role === "carrier" ? form.get("carrierKind") : undefined,
-                existingOrganizationId:
-                  role === "driver" ? form.get("existingOrganizationId") : undefined,
-                joinCode: role === "driver" ? form.get("joinCode") : undefined,
+      <form
+        className="auth-card"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          const form = new FormData(event.currentTarget);
+          const organizationType =
+            role === "merchant"
+              ? "merchant"
+              : role === "customs_broker"
+                ? "broker"
+                : form.get("carrierKind") === "independent"
+                  ? "independent_carrier"
+                  : "carrier_company";
+          try {
+            await api("/auth/register", {
+              json: {
+                email: form.get("email"),
+                password: form.get("password"),
+                fullName: form.get("fullName"),
+                phone: form.get("phone"),
+                locale: lang,
+                role,
+                organization: {
+                  type: organizationType,
+                  legalName: form.get("legalName") || form.get("fullName"),
+                  nationalAddress: form.get("nationalAddress") || undefined,
+                  iban: form.get("iban") || undefined,
+                  carrierKind: role === "carrier" ? form.get("carrierKind") : undefined,
+                  existingOrganizationId:
+                    role === "driver" ? form.get("existingOrganizationId") : undefined,
+                  joinCode: role === "driver" ? form.get("joinCode") : undefined,
+                },
               },
-            },
-          });
-          onAuth(await api<Row>("/auth/me"));
-          nav("/documents");
-        } catch (caught) {
-          setError(caught instanceof ApiError ? caught.message : "Error");
-        }
-      }}
-    >
-      <img className="auth-mark" src="/brand/JOSTI_Symbol_Color.svg" alt="" />
-      <h1>{tx(lang, "تسجيل", "Register")}</h1>
-      <p className="muted">
-        {tx(
-          lang,
-          "لا يمكن الجمع بين هوية تاجر ومخلص في حساب واحد. لا يوجد ربط تلقائي مع فسح.",
-          "A merchant and a customs broker cannot share one account. There is no automatic Fasah connection.",
-        )}
-      </p>
-      {error ? <div className="err">{error}</div> : null}
-      <label>
-        {tx(lang, "الدور", "Role")}
-        <select value={role} onChange={(event) => setRole(event.target.value)}>
-          <option value="merchant">{tx(lang, "تاجر", "Merchant")}</option>
-          <option value="customs_broker">{tx(lang, "مخلص جمركي", "Customs broker")}</option>
-          <option value="carrier">{tx(lang, "ناقل", "Carrier")}</option>
-          <option value="driver">{tx(lang, "سائق", "Driver")}</option>
-        </select>
-      </label>
-      <label>
-        {tx(lang, "الاسم", "Name")}
-        <input name="fullName" required />
-      </label>
-      <label>
-        {tx(lang, "البريد", "Email")}
-        <input name="email" type="email" required />
-      </label>
-      <label>
-        {tx(lang, "الجوال", "Mobile")}
-        <input name="phone" required />
-      </label>
-      <label>
-        {tx(lang, "كلمة المرور", "Password")}
-        <input name="password" type="password" required />
-      </label>
-      {role !== "driver" ? (
+            });
+            onAuth(await api<Row>("/auth/me"));
+            nav("/documents");
+          } catch (caught) {
+            setError(caught instanceof ApiError ? caught.message : "Error");
+          }
+        }}
+      >
+        <img className="auth-mark" src="/brand/JOSTI_Symbol_Color.svg" alt="" />
+        <h1>{tx(lang, "تسجيل", "Register")}</h1>
+        <p className="muted">
+          {tx(
+            lang,
+            "لا يمكن الجمع بين هوية تاجر ومخلص في حساب واحد. لا يوجد ربط تلقائي مع فسح.",
+            "A merchant and a customs broker cannot share one account. There is no automatic Fasah connection.",
+          )}
+        </p>
+        {error ? <div className="err">{error}</div> : null}
         <label>
-          {tx(lang, "الاسم النظامي", "Legal name")}
-          <input name="legalName" required />
-        </label>
-      ) : null}
-      <label>
-        {tx(lang, "العنوان الوطني", "National address")}
-        <input name="nationalAddress" />
-      </label>
-      {role === "merchant" ? (
-        <label>
-          IBAN
-          <input name="iban" placeholder="SA" />
-        </label>
-      ) : null}
-      {role === "carrier" ? (
-        <label>
-          {tx(lang, "نوع الناقل", "Carrier type")}
-          <select name="carrierKind">
-            <option value="company">{tx(lang, "شركة", "Company")}</option>
-            <option value="independent">{tx(lang, "ناقل فرد", "Independent")}</option>
+          {tx(lang, "الدور", "Role")}
+          <select value={role} onChange={(event) => setRole(event.target.value)}>
+            <option value="merchant">{tx(lang, "تاجر", "Merchant")}</option>
+            <option value="customs_broker">{tx(lang, "مخلص جمركي", "Customs broker")}</option>
+            <option value="carrier">{tx(lang, "ناقل", "Carrier")}</option>
+            <option value="driver">{tx(lang, "سائق", "Driver")}</option>
           </select>
         </label>
-      ) : null}
-      {role === "driver" ? (
-        <>
+        <label>
+          {tx(lang, "الاسم", "Name")}
+          <input name="fullName" required />
+        </label>
+        <label>
+          {tx(lang, "البريد", "Email")}
+          <input name="email" type="email" required />
+        </label>
+        <label>
+          {tx(lang, "الجوال", "Mobile")}
+          <input name="phone" required />
+        </label>
+        <label>
+          {tx(lang, "كلمة المرور", "Password")}
+          <input name="password" type="password" required />
+        </label>
+        {role !== "driver" ? (
           <label>
-            {tx(lang, "معرف شركة النقل", "Carrier organization id")}
-            <input name="existingOrganizationId" required />
+            {tx(lang, "الاسم النظامي", "Legal name")}
+            <input name="legalName" required />
           </label>
+        ) : null}
+        <label>
+          {tx(lang, "العنوان الوطني", "National address")}
+          <input name="nationalAddress" />
+        </label>
+        {role === "merchant" ? (
           <label>
-            {tx(lang, "رمز الانضمام", "Join code")}
-            <input name="joinCode" required />
+            IBAN
+            <input name="iban" placeholder="SA" />
           </label>
-        </>
-      ) : null}
-      <button className="cyan auth-submit" type="submit">
-        {tx(lang, "إنشاء الحساب", "Create account")}
-      </button>
-      <Link className="auth-link" to="/login">
-        {tx(lang, "لديك حساب؟ ادخل", "Already registered? Log in")}
-      </Link>
-    </form>
+        ) : null}
+        {role === "carrier" ? (
+          <label>
+            {tx(lang, "نوع الناقل", "Carrier type")}
+            <select name="carrierKind">
+              <option value="company">{tx(lang, "شركة", "Company")}</option>
+              <option value="independent">{tx(lang, "ناقل فرد", "Independent")}</option>
+            </select>
+          </label>
+        ) : null}
+        {role === "driver" ? (
+          <>
+            <label>
+              {tx(lang, "معرف شركة النقل", "Carrier organization id")}
+              <input name="existingOrganizationId" required />
+            </label>
+            <label>
+              {tx(lang, "رمز الانضمام", "Join code")}
+              <input name="joinCode" required />
+            </label>
+          </>
+        ) : null}
+        <button className="cyan auth-submit" type="submit">
+          {tx(lang, "إنشاء الحساب", "Create account")}
+        </button>
+        <Link className="auth-link" to="/login">
+          {tx(lang, "لديك حساب؟ ادخل", "Already registered? Log in")}
+        </Link>
+      </form>
     </AuthFrame>
   );
 }
@@ -1009,10 +1187,12 @@ function Requests({ lang, account }: { lang: Lang; account: Row | null }) {
   const source = role === "carrier" ? available : rows;
   const filtered = source.filter((row) => {
     const status = text(row.status);
-    const hay = `${text(row.reference)} ${text(row.containerNumber)} ${text(row.destination)}`.toLowerCase();
+    const hay =
+      `${text(row.reference)} ${text(row.containerNumber)} ${text(row.destination)}`.toLowerCase();
     if (search && !hay.includes(search.toLowerCase())) return false;
     if (filter === "all") return true;
-    if (filter === "broker") return status === "customs_clearance" || status === "returned_for_correction";
+    if (filter === "broker")
+      return status === "customs_clearance" || status === "returned_for_correction";
     if (filter === "admin") return status === "ready_for_admin_review";
     if (filter === "released")
       return status === "released_to_carriers" || status === "candidate_responses";
@@ -1096,7 +1276,11 @@ function Requests({ lang, account }: { lang: Lang; account: Row | null }) {
 
 function requestPillTone(status: string) {
   if (status === "completed" || status === "trip_confirmed" || status === "closed") return "green";
-  if (status === "customs_clearance" || status === "ready_for_admin_review" || status === "returned_for_correction")
+  if (
+    status === "customs_clearance" ||
+    status === "ready_for_admin_review" ||
+    status === "returned_for_correction"
+  )
     return "amber";
   if (status === "cancelled") return "red";
   return "blue";
@@ -1130,6 +1314,21 @@ function NewRequest({ lang, account }: { lang: Lang; account: Row | null }) {
   const nav = useNavigate();
   const [brokers, setBrokers] = useState<Row[]>([]);
   const [error, setError] = useState("");
+  const [step, setStep] = useState(0);
+  const [values, setValues] = useState({
+    portCode: "JED",
+    containerNumber: "",
+    containerType: "40ft",
+    truckType: "flatbed",
+    loadingLocation: "",
+    destination: "",
+    brokerMode: "default",
+    brokerOrganizationId: "",
+    date: "",
+    time: "09:00",
+    expectedDeliveryAt: "",
+    instructions: "",
+  });
   useEffect(() => {
     api<Row[]>("/public/brokers")
       .then(setBrokers)
@@ -1137,127 +1336,286 @@ function NewRequest({ lang, account }: { lang: Lang; account: Row | null }) {
   }, []);
   if (blocked) return blocked;
   if (text(account?.role) !== "merchant") return <Navigate to="/" replace />;
+
+  const steps = [
+    tx(lang, "بيانات الشحنة", "Shipment"),
+    tx(lang, "المخلص والجدول", "Broker & schedule"),
+    tx(lang, "المراجعة", "Review"),
+  ];
+
+  const close = () => nav("/requests");
+
+  const submit = async () => {
+    setError("");
+    const useDefault = values.brokerMode === "default";
+    const scheduledLoadingAt = new Date(`${values.date}T${values.time}`).toISOString();
+    try {
+      const created = await api<Row>("/requests", {
+        json: {
+          useDefaultBroker: useDefault,
+          brokerOrganizationId: useDefault ? undefined : values.brokerOrganizationId || undefined,
+          portCode: values.portCode,
+          containerNumber: values.containerNumber.trim().toUpperCase(),
+          containerType: values.containerType,
+          truckType: values.truckType,
+          loadingLocation: values.loadingLocation,
+          destination: values.destination,
+          scheduledLoadingAt,
+          expectedDeliveryAt: new Date(values.expectedDeliveryAt).toISOString(),
+          instructions: values.instructions || undefined,
+        },
+      });
+      nav(`/requests/${text(created.id)}`);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : "Error");
+    }
+  };
+
+  const next = async () => {
+    if (step === 0) {
+      if (values.containerNumber.trim().length < 5) {
+        setError(tx(lang, "أدخل رقم حاوية صالحًا.", "Enter a valid container reference."));
+        return;
+      }
+      if (!values.loadingLocation || !values.destination) {
+        setError(tx(lang, "أكمل مواقع التحميل والوجهة.", "Complete loading and destination."));
+        return;
+      }
+    }
+    if (step === 1) {
+      if (!values.date || !values.time || !values.expectedDeliveryAt) {
+        setError(tx(lang, "أكمل مواعيد التحميل والتسليم.", "Complete pickup and delivery times."));
+        return;
+      }
+      if (new Date(values.expectedDeliveryAt) < new Date(`${values.date}T${values.time}`)) {
+        setError(tx(lang, "التسليم يجب أن يكون بعد التحميل.", "Delivery must follow pickup."));
+        return;
+      }
+    }
+    setError("");
+    if (step < 2) {
+      setStep((s) => s + 1);
+      return;
+    }
+    await submit();
+  };
+
   return (
-    <form
-      className="card"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        const form = new FormData(event.currentTarget);
-        const useDefault = form.get("brokerMode") === "default";
-        try {
-          const created = await api<Row>("/requests", {
-            json: {
-              useDefaultBroker: useDefault,
-              brokerOrganizationId: useDefault ? undefined : form.get("brokerOrganizationId"),
-              portCode: form.get("portCode"),
-              containerNumber: form.get("containerNumber"),
-              containerType: form.get("containerType"),
-              truckType: form.get("truckType"),
-              loadingLocation: form.get("loadingLocation"),
-              destination: form.get("destination"),
-              scheduledLoadingAt: new Date(String(form.get("scheduledLoadingAt"))).toISOString(),
-              expectedDeliveryAt: new Date(String(form.get("expectedDeliveryAt"))).toISOString(),
-              instructions: form.get("instructions") || undefined,
-              proposedPrice: form.get("proposedPrice")
-                ? Number(form.get("proposedPrice"))
-                : undefined,
-            },
-          });
-          nav(`/requests/${text(created.id)}`);
-        } catch (caught) {
-          setError(caught instanceof ApiError ? caught.message : "Error");
+    <>
+      <div className="breadcrumb">JOSTI / {tx(lang, "طلب جديد", "New request")}</div>
+      <Modal
+        title={tx(lang, "طلب نقل جديد", "New transport request")}
+        onClose={close}
+        footer={
+          <>
+            {step > 0 ? (
+              <button className="ghost" type="button" onClick={() => setStep((s) => s - 1)}>
+                {tx(lang, "السابق", "Back")}
+              </button>
+            ) : (
+              <button className="ghost" type="button" onClick={close}>
+                {tx(lang, "إلغاء", "Cancel")}
+              </button>
+            )}
+            <button className="cyan" type="button" onClick={() => void next()}>
+              {step === 2
+                ? tx(lang, "إرسال للمخلص", "Send to broker")
+                : tx(lang, "التالي", "Next")}
+            </button>
+          </>
         }
-      }}
-    >
-      <h1>{tx(lang, "طلب نقل", "Transport request")}</h1>
-      <p className="muted">
-        {tx(
-          lang,
-          "السعر المقترح غير ملزم. المخلص يحدد السعر المعتمد، والإدارة تفرج الطلب يدويًا.",
-          "A proposed price is not binding. The broker sets the approved price, and an administrator releases the request manually.",
-        )}
-      </p>
-      {error ? <div className="err">{error}</div> : null}
-      <label>
-        {tx(lang, "المخلص", "Broker")}
-        <select name="brokerMode">
-          <option value="default">{tx(lang, "المخلص الافتراضي", "Saved default broker")}</option>
-          <option value="choose">{tx(lang, "اختيار لهذا الطلب", "Choose for this request")}</option>
-        </select>
-      </label>
-      <label>
-        {tx(lang, "مخلص محدد", "Selected broker")}
-        <select name="brokerOrganizationId">
-          <option value="">{tx(lang, "—", "—")}</option>
-          {brokers.map((broker) => (
-            <option key={text(broker.id)} value={text(broker.id)}>
-              {text(broker.legalName)}
-            </option>
+      >
+        <div className="steps">
+          {steps.map((label, index) => (
+            <div key={label} className={step === index ? "step active" : "step"}>
+              {index + 1}. {label}
+            </div>
           ))}
-        </select>
-      </label>
-      <label>
-        {tx(lang, "الميناء", "Port")}
-        <select name="portCode">
-          <option>JED</option>
-          <option>RAB</option>
-          <option>YAN</option>
-          <option>DMM</option>
-        </select>
-      </label>
-      <label>
-        {tx(lang, "رقم الحاوية", "Container number")}
-        <input name="containerNumber" required placeholder="ABCD1234567" />
-      </label>
-      <label>
-        {tx(lang, "نوع الحاوية", "Container type")}
-        <select name="containerType">
-          <option>20ft</option>
-          <option>40ft</option>
-          <option>40ft_hc</option>
-          <option>45ft</option>
-          <option>reefer_20</option>
-          <option>reefer_40</option>
-        </select>
-      </label>
-      <label>
-        {tx(lang, "نوع الشاحنة", "Truck type")}
-        <select name="truckType">
-          <option>container_chassis</option>
-          <option>flatbed</option>
-          <option>lowbed</option>
-          <option>side_loader</option>
-          <option>reefer</option>
-        </select>
-      </label>
-      <label>
-        {tx(lang, "موقع التحميل", "Loading location")}
-        <input name="loadingLocation" required />
-      </label>
-      <label>
-        {tx(lang, "الوجهة", "Destination")}
-        <input name="destination" required />
-      </label>
-      <label>
-        {tx(lang, "وقت التحميل", "Loading time")}
-        <input name="scheduledLoadingAt" type="datetime-local" required />
-      </label>
-      <label>
-        {tx(lang, "الوصول المتوقع", "Expected delivery")}
-        <input name="expectedDeliveryAt" type="datetime-local" required />
-      </label>
-      <label>
-        {tx(lang, "تعليمات", "Instructions")}
-        <textarea name="instructions" />
-      </label>
-      <label>
-        {tx(lang, "سعر مقترح غير ملزم", "Non-binding proposed price")}
-        <input name="proposedPrice" type="number" min="1" />
-      </label>
-      <button className="primary" type="submit">
-        {tx(lang, "إرسال للمخلص", "Send to broker")}
-      </button>
-    </form>
+        </div>
+        {error ? <div className="err">{error}</div> : null}
+        {step === 0 ? (
+          <div className="formgrid">
+            <label>
+              {tx(lang, "الميناء", "Port")}
+              <select
+                value={values.portCode}
+                onChange={(event) => setValues((v) => ({ ...v, portCode: event.target.value }))}
+              >
+                <option value="JED">{tx(lang, "ميناء جدة الإسلامي", "Jeddah Islamic Port")}</option>
+                <option value="RAB">{tx(lang, "ميناء رابغ", "Rabigh Port")}</option>
+                <option value="YAN">{tx(lang, "ميناء ينبع", "Yanbu Port")}</option>
+                <option value="DMM">{tx(lang, "ميناء الملك عبدالعزيز", "King Abdulaziz Port")}</option>
+              </select>
+            </label>
+            <label>
+              {tx(lang, "رقم الحاوية", "Container number")}
+              <input
+                value={values.containerNumber}
+                onChange={(event) => setValues((v) => ({ ...v, containerNumber: event.target.value }))}
+                placeholder="MSCU1234567"
+                required
+              />
+            </label>
+            <label>
+              {tx(lang, "حجم الحاوية", "Container size")}
+              <select
+                value={values.containerType}
+                onChange={(event) => setValues((v) => ({ ...v, containerType: event.target.value }))}
+              >
+                <option value="40ft">40 {tx(lang, "قدم", "ft")}</option>
+                <option value="20ft">20 {tx(lang, "قدم", "ft")}</option>
+                <option value="40ft_hc">40 HC</option>
+              </select>
+            </label>
+            <label>
+              {tx(lang, "الشاحنة المطلوبة", "Required truck")}
+              <select
+                value={values.truckType}
+                onChange={(event) => setValues((v) => ({ ...v, truckType: event.target.value }))}
+              >
+                <option value="flatbed">{tx(lang, "سطحة حاويات", "Container flatbed")}</option>
+                <option value="container_chassis">{tx(lang, "قاطرة حاوية", "Container chassis")}</option>
+              </select>
+            </label>
+            <label>
+              {tx(lang, "موقع التحميل", "Pickup location")}
+              <input
+                value={values.loadingLocation}
+                onChange={(event) => setValues((v) => ({ ...v, loadingLocation: event.target.value }))}
+                placeholder={tx(lang, "بوابة أو ساحة التحميل", "Gate or loading yard")}
+                required
+              />
+            </label>
+            <label>
+              {tx(lang, "الوجهة", "Destination")}
+              <input
+                value={values.destination}
+                onChange={(event) => setValues((v) => ({ ...v, destination: event.target.value }))}
+                placeholder={tx(lang, "المستودع والعنوان", "Warehouse and address")}
+                required
+              />
+            </label>
+          </div>
+        ) : null}
+        {step === 1 ? (
+          <>
+            <label>
+              {tx(lang, "المخلص الجمركي لهذا الطلب", "Customs broker for this request")}
+              <select
+                value={values.brokerMode}
+                onChange={(event) => setValues((v) => ({ ...v, brokerMode: event.target.value }))}
+              >
+                <option value="default">{tx(lang, "المخلص الافتراضي", "Saved default broker")}</option>
+                <option value="choose">{tx(lang, "اختيار من الدليل", "Choose from directory")}</option>
+              </select>
+            </label>
+            {values.brokerMode === "choose" ? (
+              <label>
+                {tx(lang, "مخلص محدد", "Selected broker")}
+                <select
+                  value={values.brokerOrganizationId}
+                  onChange={(event) =>
+                    setValues((v) => ({ ...v, brokerOrganizationId: event.target.value }))
+                  }
+                >
+                  <option value="">{tx(lang, "—", "—")}</option>
+                  {brokers.map((broker) => (
+                    <option key={text(broker.id)} value={text(broker.id)}>
+                      {text(broker.legalName)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            <div className="formgrid">
+              <label>
+                {tx(lang, "تاريخ التحميل", "Pickup date")}
+                <input
+                  type="date"
+                  value={values.date}
+                  onChange={(event) => setValues((v) => ({ ...v, date: event.target.value }))}
+                  required
+                />
+              </label>
+              <label>
+                {tx(lang, "وقت التحميل", "Pickup time")}
+                <input
+                  type="time"
+                  value={values.time}
+                  onChange={(event) => setValues((v) => ({ ...v, time: event.target.value }))}
+                  required
+                />
+              </label>
+              <label>
+                {tx(lang, "التسليم المتوقع", "Expected delivery")}
+                <input
+                  type="datetime-local"
+                  value={values.expectedDeliveryAt}
+                  onChange={(event) =>
+                    setValues((v) => ({ ...v, expectedDeliveryAt: event.target.value }))
+                  }
+                  required
+                />
+              </label>
+            </div>
+            <label>
+              {tx(lang, "تعليمات خاصة", "Special instructions")}
+              <textarea
+                rows={3}
+                value={values.instructions}
+                onChange={(event) => setValues((v) => ({ ...v, instructions: event.target.value }))}
+              />
+            </label>
+            <div className="notice">
+              {tx(
+                lang,
+                "المخلص يحدد سعر النقل قبل مراجعة الإدارة. لا يُحصّل دفع داخل المنصة.",
+                "The broker sets the transport price before admin review. No payment is collected inside the platform.",
+              )}
+            </div>
+          </>
+        ) : null}
+        {step === 2 ? (
+          <>
+            <div className="route-summary">
+              <div className="route-line" />
+              <div>
+                <b>{values.portCode}</b>
+                <p>{values.loadingLocation}</p>
+                <p className="muted">{values.destination}</p>
+              </div>
+            </div>
+            <div className="detail-grid">
+              <div>
+                <small>{tx(lang, "الحاوية", "Container")}</small>
+                <b className="ltr">{values.containerNumber.trim().toUpperCase()}</b>
+              </div>
+              <div>
+                <small>{tx(lang, "الحجم", "Size")}</small>
+                <b>{values.containerType}</b>
+              </div>
+              <div>
+                <small>{tx(lang, "التحميل", "Pickup")}</small>
+                <b className="ltr">
+                  {values.date} {values.time}
+                </b>
+              </div>
+            </div>
+            <div className="policy">
+              {tx(
+                lang,
+                "أرسل الطلب للمخلص لتحديد السعر. الإدارة تفرج الطلب للناقلين يدويًا. قبول الناقل ترشيح وليس تعيينًا نهائيًا.",
+                "Send the request to the broker to set the price. Admin releases it to carriers manually. Carrier acceptance is candidacy, not final assignment.",
+              )}
+            </div>
+            <label className="check">
+              <input type="checkbox" name="terms" required defaultChecked />
+              <span>{tx(lang, "أوافق على شروط الإرسال للمخلص", "I accept sending this request to the broker")}</span>
+            </label>
+          </>
+        ) : null}
+      </Modal>
+    </>
   );
 }
 
@@ -1269,9 +1627,35 @@ function RequestDetail({ lang, account }: { lang: Lang; account: Row | null }) {
   const [drivers, setDrivers] = useState<Row[]>([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const [editBusy, setEditBusy] = useState(false);
+  const [editValues, setEditValues] = useState({
+    portCode: "JED",
+    containerNumber: "",
+    containerType: "40ft",
+    truckType: "flatbed",
+    loadingLocation: "",
+    destination: "",
+    scheduledLoadingAt: "",
+    expectedDeliveryAt: "",
+    instructions: "",
+  });
   const load = () =>
     api<Row>(`/requests/${id}`)
-      .then(setRow)
+      .then((data) => {
+        setRow(data);
+        setEditValues({
+          portCode: text(data.portCode) || "JED",
+          containerNumber: text(data.containerNumber),
+          containerType: text(data.containerType) || "40ft",
+          truckType: text(data.truckType) || "flatbed",
+          loadingLocation: text(data.loadingLocation),
+          destination: text(data.destination),
+          scheduledLoadingAt: text(data.scheduledLoadingAt).slice(0, 16),
+          expectedDeliveryAt: text(data.expectedDeliveryAt).slice(0, 16),
+          instructions: text(data.instructions),
+        });
+      })
       .catch((caught: ApiError) => setError(caught.message));
   useEffect(() => {
     if (account) void load();
@@ -1295,18 +1679,66 @@ function RequestDetail({ lang, account }: { lang: Lang; account: Row | null }) {
   const responses = (row.responses as Row[] | undefined) ?? [];
   const history = (row.history as Row[] | undefined) ?? [];
   const role = text(account?.role);
+  const status = text(row.status);
+  const returnedReason = text(row.returnedReason);
+  const merchantCanCorrect =
+    role === "merchant" && ["returned_for_correction", "customs_clearance"].includes(status);
+  const merchantMustResubmit = role === "merchant" && status === "returned_for_correction";
+
+  const saveMerchantCorrection = async (resubmit: boolean) => {
+    setEditBusy(true);
+    setError("");
+    try {
+      await api(`/requests/${id}`, {
+        method: "PATCH",
+        json: {
+          resubmit,
+          portCode: editValues.portCode,
+          containerNumber: editValues.containerNumber.trim().toUpperCase(),
+          containerType: editValues.containerType,
+          truckType: editValues.truckType,
+          loadingLocation: editValues.loadingLocation,
+          destination: editValues.destination,
+          scheduledLoadingAt: new Date(editValues.scheduledLoadingAt).toISOString(),
+          expectedDeliveryAt: new Date(editValues.expectedDeliveryAt).toISOString(),
+          instructions: editValues.instructions || undefined,
+        },
+      });
+      setEditOpen(false);
+      setMessage(
+        resubmit
+          ? tx(lang, "أُعيد إرسال الطلب للمخلص بعد التصحيح.", "Request resubmitted to the broker.")
+          : tx(lang, "تم حفظ التصحيحات.", "Corrections saved."),
+      );
+      await load();
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : "Error");
+    } finally {
+      setEditBusy(false);
+    }
+  };
+
   return (
     <>
       <Link className="back" to="/requests">
         {tx(lang, "العودة إلى الطلبات", "Back to requests")}
       </Link>
       <section className="hero-card">
-        <span className="badge">{statusName(lang, text(row.status))}</span>
+        <span className="badge">{statusName(lang, status)}</span>
         <h1>{text(row.reference)}</h1>
         <p>
           {text(row.portCode)} · {text(row.containerNumber)}
         </p>
       </section>
+      {returnedReason || status === "returned_for_correction" ? (
+        <div className="notice" style={{ borderColor: "#e6c27a", background: "#fff4df" }}>
+          <strong>{tx(lang, "مطلوب تصحيح", "Correction required")}</strong>
+          <span>
+            {returnedReason ||
+              tx(lang, "أُعيد الطلب للتصحيح. راجع البيانات وأعد الإرسال.", "Request returned for correction. Review and resubmit.")}
+          </span>
+        </div>
+      ) : null}
       <section className="dossier">
         <div className="card kv">
           <span>{tx(lang, "التحميل", "Loading")}</span>
@@ -1343,11 +1775,167 @@ function RequestDetail({ lang, account }: { lang: Lang; account: Row | null }) {
             </Link>
           ) : (
             <p className="muted">
-              {tx(lang, "الخريطة تظهر بعد تعيين الرحلة.", "The map opens after a trip is assigned.")}
+              {tx(
+                lang,
+                "الخريطة تظهر بعد تعيين الرحلة.",
+                "The map opens after a trip is assigned.",
+              )}
             </p>
           )}
         </div>
       </section>
+      {merchantCanCorrect ? (
+        <div className="row wrap" style={{ gap: 8, marginBottom: 12 }}>
+          <button className="cyan" type="button" onClick={() => setEditOpen(true)}>
+            {merchantMustResubmit
+              ? tx(lang, "تصحيح الطلب", "Correct request")
+              : tx(lang, "تعديل الطلب", "Edit request")}
+          </button>
+        </div>
+      ) : null}
+      {editOpen ? (
+        <Modal
+          title={
+            merchantMustResubmit
+              ? tx(lang, "تصحيح وإعادة إرسال", "Correct and resubmit")
+              : tx(lang, "تعديل الطلب", "Edit request")
+          }
+          onClose={() => !editBusy && setEditOpen(false)}
+          footer={
+            <>
+              <button className="ghost" type="button" disabled={editBusy} onClick={() => setEditOpen(false)}>
+                {tx(lang, "إلغاء", "Cancel")}
+              </button>
+              {merchantMustResubmit ? (
+                <>
+                  <button
+                    className="outline"
+                    type="button"
+                    disabled={editBusy}
+                    onClick={() => void saveMerchantCorrection(false)}
+                  >
+                    {tx(lang, "حفظ التصحيحات", "Save corrections")}
+                  </button>
+                  <button
+                    className="cyan"
+                    type="button"
+                    disabled={editBusy}
+                    onClick={() => void saveMerchantCorrection(true)}
+                  >
+                    {tx(lang, "إعادة الإرسال للمخلص", "Resubmit to broker")}
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="cyan"
+                  type="button"
+                  disabled={editBusy}
+                  onClick={() => void saveMerchantCorrection(false)}
+                >
+                  {tx(lang, "حفظ", "Save")}
+                </button>
+              )}
+            </>
+          }
+        >
+          {returnedReason ? <div className="notice">{returnedReason}</div> : null}
+          <div className="formgrid">
+            <label>
+              {tx(lang, "الميناء", "Port")}
+              <select
+                value={editValues.portCode}
+                onChange={(event) => setEditValues((v) => ({ ...v, portCode: event.target.value }))}
+              >
+                <option value="JED">JED</option>
+                <option value="RAB">RAB</option>
+                <option value="YAN">YAN</option>
+                <option value="DMM">DMM</option>
+              </select>
+            </label>
+            <label>
+              {tx(lang, "رقم الحاوية", "Container number")}
+              <input
+                value={editValues.containerNumber}
+                onChange={(event) =>
+                  setEditValues((v) => ({ ...v, containerNumber: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              {tx(lang, "نوع الحاوية", "Container type")}
+              <select
+                value={editValues.containerType}
+                onChange={(event) =>
+                  setEditValues((v) => ({ ...v, containerType: event.target.value }))
+                }
+              >
+                <option value="20ft">20ft</option>
+                <option value="40ft">40ft</option>
+                <option value="40ft_hc">40ft_hc</option>
+                <option value="45ft">45ft</option>
+                <option value="reefer_20">reefer_20</option>
+                <option value="reefer_40">reefer_40</option>
+              </select>
+            </label>
+            <label>
+              {tx(lang, "نوع الشاحنة", "Truck type")}
+              <select
+                value={editValues.truckType}
+                onChange={(event) => setEditValues((v) => ({ ...v, truckType: event.target.value }))}
+              >
+                <option value="flatbed">flatbed</option>
+                <option value="lowbed">lowbed</option>
+                <option value="side_loader">side_loader</option>
+                <option value="container_chassis">container_chassis</option>
+                <option value="reefer">reefer</option>
+              </select>
+            </label>
+            <label>
+              {tx(lang, "موقع التحميل", "Loading location")}
+              <input
+                value={editValues.loadingLocation}
+                onChange={(event) =>
+                  setEditValues((v) => ({ ...v, loadingLocation: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              {tx(lang, "الوجهة", "Destination")}
+              <input
+                value={editValues.destination}
+                onChange={(event) => setEditValues((v) => ({ ...v, destination: event.target.value }))}
+              />
+            </label>
+            <label>
+              {tx(lang, "وقت التحميل", "Loading time")}
+              <input
+                type="datetime-local"
+                value={editValues.scheduledLoadingAt}
+                onChange={(event) =>
+                  setEditValues((v) => ({ ...v, scheduledLoadingAt: event.target.value }))
+                }
+              />
+            </label>
+            <label>
+              {tx(lang, "الوصول المتوقع", "Expected delivery")}
+              <input
+                type="datetime-local"
+                value={editValues.expectedDeliveryAt}
+                onChange={(event) =>
+                  setEditValues((v) => ({ ...v, expectedDeliveryAt: event.target.value }))
+                }
+              />
+            </label>
+          </div>
+          <label>
+            {tx(lang, "تعليمات", "Instructions")}
+            <textarea
+              value={editValues.instructions}
+              onChange={(event) => setEditValues((v) => ({ ...v, instructions: event.target.value }))}
+            />
+          </label>
+        </Modal>
+      ) : null}
       {history.length ? (
         <section className="card">
           <h2>{tx(lang, "سجل الحالة", "Status log")}</h2>
@@ -1356,6 +1944,7 @@ function RequestDetail({ lang, account }: { lang: Lang; account: Row | null }) {
               <li key={text(event.id)}>
                 <strong>{statusName(lang, text(event.newStatus))}</strong>
                 <span>{when(event.createdAt, lang)}</span>
+                {text(event.reason) ? <span className="muted">{text(event.reason)}</span> : null}
               </li>
             ))}
           </ol>
@@ -1783,6 +2372,13 @@ function TripDetail({ lang, account }: { lang: Lang; account: Row | null }) {
   const [row, setRow] = useState<Row | null>(null);
   const [tracking, setTracking] = useState<Row | null>(null);
   const [error, setError] = useState("");
+  const [rateOpen, setRateOpen] = useState(false);
+  const [incidentOpen, setIncidentOpen] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [ratingComment, setRatingComment] = useState("");
+  const [incidentType, setIncidentType] = useState("delay");
+  const [incidentDescription, setIncidentDescription] = useState("");
+  const [modalMessage, setModalMessage] = useState("");
   const load = async () => {
     setRow(await api<Row>(`/trips/${id}`));
     setTracking(await api<Row>(`/trips/${id}/tracking`).catch(() => null));
@@ -1831,11 +2427,11 @@ function TripDetail({ lang, account }: { lang: Lang; account: Row | null }) {
       <section className="dossier">
         <div>
           {line.length ? (
-            <div className="map">
+            <div className="leaflet-map">
               <MapContainer
                 center={line[line.length - 1] ?? [24.2, 45]}
                 zoom={7}
-                style={{ height: "100%" }}
+                style={{ height: "100%", minHeight: 320 }}
               >
                 <TileLayer attribution={tiles.attribution} url={tiles.url} />
                 <Polyline positions={line} pathOptions={{ color: "#32D5E7", weight: 5 }} />
@@ -1854,7 +2450,9 @@ function TripDetail({ lang, account }: { lang: Lang; account: Row | null }) {
               </MapContainer>
             </div>
           ) : (
-            <p className="muted">{tx(lang, "لا يوجد مسار بعد.", "No route has been recorded yet.")}</p>
+            <p className="muted">
+              {tx(lang, "لا يوجد مسار بعد.", "No route has been recorded yet.")}
+            </p>
           )}
           <h2>{tx(lang, "سجل الحالة", "Status log")}</h2>
           <ol className="timeline">
@@ -1879,7 +2477,11 @@ function TripDetail({ lang, account }: { lang: Lang; account: Row | null }) {
               </p>
             ) : (
               <p className="muted">
-                {tx(lang, "يُسجل الرسم عند إغلاق الرحلة.", "The fee is recorded when the trip is closed.")}
+                {tx(
+                  lang,
+                  "يُسجل الرسم عند إغلاق الرحلة.",
+                  "The fee is recorded when the trip is closed.",
+                )}
               </p>
             )}
             {row.delivery ? (
@@ -1899,7 +2501,9 @@ function TripDetail({ lang, account }: { lang: Lang; account: Row | null }) {
               {tx(lang, "نقاط التتبع", "Tracking points")}: {points.length}
             </p>
             {text(row.requestId) ? (
-              <Link to={`/requests/${text(row.requestId)}`}>{tx(lang, "فتح الطلب", "Open the request")}</Link>
+              <Link to={`/requests/${text(row.requestId)}`}>
+                {tx(lang, "فتح الطلب", "Open the request")}
+              </Link>
             ) : null}
           </div>
         </aside>
@@ -1985,79 +2589,161 @@ function TripDetail({ lang, account }: { lang: Lang; account: Row | null }) {
           </button>
         </form>
       ) : null}
-      {["delivered", "closed"].includes(text(row.status)) ? (
-        <form
-          className="card"
-          onSubmit={async (event) => {
-            event.preventDefault();
-            const form = new FormData(event.currentTarget);
-            try {
-              await api(`/trips/${id}/ratings`, {
-                json: {
-                  tripId: id,
-                  targetRole: form.get("targetRole"),
-                  score: Number(form.get("score")),
-                  comment: form.get("comment") || undefined,
-                },
-              });
-              await load();
-            } catch (caught) {
-              setError(caught instanceof ApiError ? caught.message : "Error");
-            }
-          }}
-        >
-          <h2>{tx(lang, "تقييم", "Rating")}</h2>
-          <select name="targetRole">
-            <option value="carrier">carrier</option>
-            <option value="merchant">merchant</option>
-          </select>
-          <input name="score" type="number" min="1" max="5" required />
-          <input name="comment" />
-          <button className="ghost" type="submit">
-            {tx(lang, "إرسال التقييم", "Submit rating")}
+      <div className="row wrap" style={{ marginTop: 12, gap: 8 }}>
+        {["delivered", "closed"].includes(text(row.status)) ? (
+          <button className="cyan" type="button" onClick={() => setRateOpen(true)}>
+            {tx(lang, "تقييم الرحلة", "Rate this trip")}
           </button>
-        </form>
-      ) : null}
-      <form
-        className="card"
-        onSubmit={async (event) => {
-          event.preventDefault();
-          const form = new FormData(event.currentTarget);
-          try {
-            await api(`/trips/${id}/incidents`, {
-              json: {
-                tripId: id,
-                incidentType: form.get("incidentType"),
-                description: form.get("description"),
-              },
-            });
-            setError("");
-          } catch (caught) {
-            setError(caught instanceof ApiError ? caught.message : "Error");
-          }
-        }}
-      >
-        <h2>{tx(lang, "بلاغ", "Incident")}</h2>
-        <p className="muted">
-          {tx(
-            lang,
-            "البلاغ لا يلغي الرحلة ولا يفرض غرامة.",
-            "An incident does not cancel the trip or impose a fine.",
-          )}
-        </p>
-        <select name="incidentType">
-          <option>delay</option>
-          <option>damage</option>
-          <option>documentation</option>
-          <option>safety</option>
-          <option>no_show</option>
-          <option>other</option>
-        </select>
-        <textarea name="description" required />
-        <button className="danger" type="submit">
-          {tx(lang, "تسجيل البلاغ", "Report incident")}
+        ) : null}
+        <button className="danger" type="button" onClick={() => setIncidentOpen(true)}>
+          {tx(lang, "الإبلاغ عن استثناء", "Report an exception")}
         </button>
-      </form>
+      </div>
+      {modalMessage ? <div className="badge ok">{modalMessage}</div> : null}
+
+      {rateOpen ? (
+        <Modal
+          title={tx(lang, "كيف كانت رحلتك؟", "How was your trip?")}
+          onClose={() => setRateOpen(false)}
+          footer={
+            <>
+              <button className="ghost" type="button" onClick={() => setRateOpen(false)}>
+                {tx(lang, "إلغاء", "Cancel")}
+              </button>
+              <button
+                className="cyan"
+                type="button"
+                onClick={async () => {
+                  try {
+                    const targetRole =
+                      text(account?.role) === "carrier" ? "merchant" : "carrier";
+                    await api(`/trips/${id}/ratings`, {
+                      json: {
+                        tripId: id,
+                        targetRole,
+                        score: rating,
+                        comment: ratingComment || undefined,
+                      },
+                    });
+                    setRateOpen(false);
+                    setModalMessage(tx(lang, "تم إرسال التقييم.", "Rating submitted."));
+                    await load();
+                  } catch (caught) {
+                    setError(caught instanceof ApiError ? caught.message : "Error");
+                  }
+                }}
+              >
+                {tx(lang, "إرسال التقييم", "Submit rating")}
+              </button>
+            </>
+          }
+        >
+          <div style={{ textAlign: "center" }}>
+            <span className="ltr">{text(row.reference)}</span>
+            <h3 style={{ marginTop: 10 }}>
+              {text(account?.role) === "carrier"
+                ? tx(lang, "قيّم التاجر", "Rate merchant")
+                : tx(lang, "قيّم الناقل", "Rate carrier")}
+            </h3>
+          </div>
+          <div className="stars">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                className={n <= rating ? "on" : ""}
+                type="button"
+                aria-label={`${n} stars`}
+                onClick={() => setRating(n)}
+              >
+                ★
+              </button>
+            ))}
+          </div>
+          <label className="field">
+            <span>{tx(lang, "ملاحظاتك", "Your feedback")}</span>
+            <textarea
+              rows={3}
+              value={ratingComment}
+              onChange={(event) => setRatingComment(event.target.value)}
+              placeholder={tx(lang, "شارك ملاحظاتك…", "Share your feedback...")}
+            />
+          </label>
+        </Modal>
+      ) : null}
+
+      {incidentOpen ? (
+        <Modal
+          title={tx(lang, "الإبلاغ عن استثناء", "Report an exception")}
+          onClose={() => setIncidentOpen(false)}
+          footer={
+            <>
+              <button className="ghost" type="button" onClick={() => setIncidentOpen(false)}>
+                {tx(lang, "إلغاء", "Cancel")}
+              </button>
+              <button
+                className="cyan"
+                type="button"
+                onClick={async () => {
+                  if (incidentDescription.trim().length < 5) {
+                    setError(
+                      tx(lang, "اكتب وصفًا أوضح للواقعة.", "Describe the incident more clearly."),
+                    );
+                    return;
+                  }
+                  try {
+                    await api(`/trips/${id}/incidents`, {
+                      json: {
+                        tripId: id,
+                        incidentType,
+                        description: incidentDescription,
+                      },
+                    });
+                    setIncidentOpen(false);
+                    setIncidentDescription("");
+                    setModalMessage(
+                      tx(lang, "تم تسجيل البلاغ للمراجعة.", "Incident submitted for review."),
+                    );
+                    setError("");
+                  } catch (caught) {
+                    setError(caught instanceof ApiError ? caught.message : "Error");
+                  }
+                }}
+              >
+                {tx(lang, "إرسال البلاغ", "Submit incident")}
+              </button>
+            </>
+          }
+        >
+          <label>
+            {tx(lang, "نوع البلاغ", "Incident type")}
+            <select value={incidentType} onChange={(event) => setIncidentType(event.target.value)}>
+              <option value="delay">{tx(lang, "تأخير", "Delay")}</option>
+              <option value="damage">{tx(lang, "ضرر", "Damage")}</option>
+              <option value="documentation">{tx(lang, "مستندات", "Documentation")}</option>
+              <option value="safety">{tx(lang, "سلامة", "Safety")}</option>
+              <option value="no_show">{tx(lang, "عدم حضور", "No show")}</option>
+              <option value="other">{tx(lang, "أخرى", "Other")}</option>
+            </select>
+          </label>
+          <label>
+            {tx(lang, "صف الواقعة", "Describe the incident")}
+            <textarea
+              required
+              rows={4}
+              minLength={5}
+              value={incidentDescription}
+              onChange={(event) => setIncidentDescription(event.target.value)}
+            />
+          </label>
+          <div className="notice">
+            {tx(
+              lang,
+              "الإبلاغ لا يلغي الرحلة ولا يفرض غرامة. تراجعه الإدارة وفق السياسة المعتمدة.",
+              "Reporting does not cancel the trip or impose a fine. Admin reviews it under the approved policy.",
+            )}
+          </div>
+        </Modal>
+      ) : null}
     </>
   );
 }
@@ -2099,19 +2785,28 @@ function Documents({ lang, account }: { lang: Lang; account: Row | null }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [vehicles, setVehicles] = useState<Row[]>([]);
   const [drivers, setDrivers] = useState<Row[]>([]);
-  const [docType, setDocType] = useState(DOC_TYPES[text(account?.role)]?.[0] ?? "commercial_registration");
+  const [docType, setDocType] = useState(
+    DOC_TYPES[text(account?.role)]?.[0] ?? "commercial_registration",
+  );
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
   const load = () => api<Row[]>("/documents").then(setRows);
   useEffect(() => {
     if (account) void load().catch((caught: ApiError) => setError(caught.message));
     if (text(account?.role) === "carrier") {
-      api<Row[]>("/vehicles").then(setVehicles).catch(() => setVehicles([]));
-      api<Row[]>("/drivers").then(setDrivers).catch(() => setDrivers([]));
+      api<Row[]>("/vehicles")
+        .then(setVehicles)
+        .catch(() => setVehicles([]));
+      api<Row[]>("/drivers")
+        .then(setDrivers)
+        .catch(() => setDrivers([]));
     }
   }, [account]);
   if (blocked) return blocked;
-  const types = DOC_TYPES[text(account?.role)] ?? DOC_TYPES.merchant;
+  const types =
+    DOC_TYPES[text(account?.role)] ??
+    DOC_TYPES.merchant ??
+    (["commercial_registration"] as string[]);
   return (
     <>
       <h1>{tx(lang, "مستندات التحقق", "Verification documents")}</h1>
@@ -2140,7 +2835,9 @@ function Documents({ lang, account }: { lang: Lang; account: Row | null }) {
           if (form.get("expiresOn")) upload.set("expiresOn", String(form.get("expiresOn")));
           try {
             await api("/documents", { form: upload });
-            setSaved(tx(lang, "تم الرفع وهو بانتظار المراجعة.", "Uploaded and waiting for review."));
+            setSaved(
+              tx(lang, "تم الرفع وهو بانتظار المراجعة.", "Uploaded and waiting for review."),
+            );
             setError("");
             await load();
           } catch (caught) {
@@ -2161,7 +2858,12 @@ function Documents({ lang, account }: { lang: Lang; account: Row | null }) {
         </label>
         <label>
           {tx(lang, "الملف", "File")}
-          <input name="file" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" required />
+          <input
+            name="file"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            required
+          />
         </label>
         {VEHICLE_DOCS.has(docType) ? (
           <label>
@@ -2206,7 +2908,9 @@ function Documents({ lang, account }: { lang: Lang; account: Row | null }) {
             </div>
             <span>
               <span className="badge">{statusName(lang, text(row.status))}</span>{" "}
-              <a href={`/api/v1/documents/${text(row.id)}/download`}>{tx(lang, "تنزيل", "Download")}</a>
+              <a href={`/api/v1/documents/${text(row.id)}/download`}>
+                {tx(lang, "تنزيل", "Download")}
+              </a>
             </span>
           </div>
         ))}
@@ -2227,30 +2931,41 @@ function Notifications({ lang, account }: { lang: Lang; account: Row | null }) {
   if (blocked) return blocked;
   return (
     <>
-      <div className="top">
-        <h1>{tx(lang, "التنبيهات", "Notifications")}</h1>
-        <button
-          className="ghost"
-          type="button"
-          onClick={async () => {
-            await api("/notifications/read-all", { method: "POST", json: {} });
-            setRows(await api<Row[]>("/notifications"));
-          }}
-        >
-          {tx(lang, "تعليم الكل كمقروء", "Mark all read")}
-        </button>
+      <div className="page-title">
+        <div>
+          <div className="breadcrumb">JOSTI / {tx(lang, "التنبيهات", "Notifications")}</div>
+          <h1>{tx(lang, "التنبيهات", "Notifications")}</h1>
+        </div>
+        <div className="page-actions">
+          <button
+            className="ghost"
+            type="button"
+            onClick={async () => {
+              await api("/notifications/read-all", { method: "POST", json: {} });
+              setRows(await api<Row[]>("/notifications"));
+            }}
+          >
+            {tx(lang, "تعليم الكل كمقروء", "Mark all read")}
+          </button>
+        </div>
       </div>
       {!rows.length ? (
         <p className="muted">{tx(lang, "لا توجد تنبيهات.", "No notifications.")}</p>
       ) : (
         <div className="record-list">
           {rows.map((row) => (
-            <Link className={row.readAt ? "record read" : "record unread"} key={text(row.id)} to={`/notifications/${text(row.id)}`}>
+            <Link
+              className={row.readAt ? "record read" : "record unread"}
+              key={text(row.id)}
+              to={`/notifications/${text(row.id)}`}
+            >
               <div>
                 <strong>{lang === "ar" ? text(row.titleAr) : text(row.titleEn)}</strong>
                 <p className="muted">{when(row.createdAt, lang)}</p>
               </div>
-              <span className="badge">{row.readAt ? tx(lang, "مقروء", "Read") : tx(lang, "جديد", "New")}</span>
+              <span className="badge">
+                {row.readAt ? tx(lang, "مقروء", "Read") : tx(lang, "جديد", "New")}
+              </span>
             </Link>
           ))}
         </div>
@@ -2280,7 +2995,11 @@ function NotificationDetail({ lang, account }: { lang: Lang; account: Row | null
   }, [account, id, lang]);
   if (blocked) return blocked;
   if (!row)
-    return error ? <div className="err">{error}</div> : <p>{tx(lang, "جار التحميل…", "Loading…")}</p>;
+    return error ? (
+      <div className="err">{error}</div>
+    ) : (
+      <p>{tx(lang, "جار التحميل…", "Loading…")}</p>
+    );
   const data = (row.data as Row | undefined) ?? {};
   return (
     <>
@@ -2288,7 +3007,9 @@ function NotificationDetail({ lang, account }: { lang: Lang; account: Row | null
         {tx(lang, "العودة إلى التنبيهات", "Back to notifications")}
       </Link>
       <section className="hero-card">
-        <span className="badge">{statusName(lang, text(row.type)) || tx(lang, "تنبيه", "Notice")}</span>
+        <span className="badge">
+          {statusName(lang, text(row.type)) || tx(lang, "تنبيه", "Notice")}
+        </span>
         <h1>{lang === "ar" ? text(row.titleAr) : text(row.titleEn)}</h1>
         <p>{when(row.createdAt, lang)}</p>
       </section>
@@ -2318,13 +3039,19 @@ function NotificationDetail({ lang, account }: { lang: Lang; account: Row | null
         </div>
         <div className="row">
           {text(data.requestId) ? (
-            <Link to={`/requests/${text(data.requestId)}`}>{tx(lang, "فتح الطلب", "Open the request")}</Link>
+            <Link to={`/requests/${text(data.requestId)}`}>
+              {tx(lang, "فتح الطلب", "Open the request")}
+            </Link>
           ) : null}
           {text(data.tripId) ? (
-            <Link to={`/trips/${text(data.tripId)}`}>{tx(lang, "فتح الرحلة", "Open the trip")}</Link>
+            <Link to={`/trips/${text(data.tripId)}`}>
+              {tx(lang, "فتح الرحلة", "Open the trip")}
+            </Link>
           ) : null}
           {text(data.documentId) ? (
-            <a href={`/api/v1/documents/${text(data.documentId)}/download`}>{tx(lang, "فتح المستند", "Open the document")}</a>
+            <a href={`/api/v1/documents/${text(data.documentId)}/download`}>
+              {tx(lang, "فتح المستند", "Open the document")}
+            </a>
           ) : null}
         </div>
       </section>
@@ -2390,7 +3117,8 @@ function Profile({
         <div>
           <h1>{text(me.fullName)}</h1>
           <p>
-            <span className="badge">{text(me.role)}</span> <span className="badge">{text(me.status)}</span>
+            <span className="badge">{text(me.role)}</span>{" "}
+            <span className="badge">{text(me.status)}</span>
           </p>
           <p className="muted">
             {text(me.email)} · {text(me.phone)}
@@ -2411,7 +3139,14 @@ function Profile({
           event.preventDefault();
           const form = new FormData(event.currentTarget);
           const payload: Row = {};
-          for (const key of ["fullName", "fullNameAr", "phone", "legalName", "legalNameAr", "nationalAddress"]) {
+          for (const key of [
+            "fullName",
+            "fullNameAr",
+            "phone",
+            "legalName",
+            "legalNameAr",
+            "nationalAddress",
+          ]) {
             const value = String(form.get(key) || "").trim();
             if (value) payload[key] = value;
           }
