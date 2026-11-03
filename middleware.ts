@@ -1,12 +1,10 @@
 /**
- * Vercel Edge Middleware — proxies /api/* to the Bun API origin.
- *
- * Keeps browser calls on the Vercel origin so httpOnly session cookies
- * (SameSite=Lax) continue to work. Does not run the Bun backend on Vercel.
- *
- * Server-only env: JOSTI_API_ORIGIN (e.g. https://api.example.com)
- * Never prefix this with VITE_ — it must not be embedded in the client bundle.
+ * Optional Edge proxy to an external Bun API.
+ * If JOSTI_API_ORIGIN is unset, the request continues to the Hono "app" service.
+ * If set, /api/* is forwarded to that origin (same-origin cookies on the SPA host).
  */
+
+import { next } from "@vercel/functions";
 
 const HOP_BY_HOP = new Set([
   "connection",
@@ -27,17 +25,7 @@ export const config = {
 
 export default async function middleware(request: Request): Promise<Response> {
   const apiOrigin = (process.env.JOSTI_API_ORIGIN ?? "").trim().replace(/\/$/, "");
-  if (!apiOrigin) {
-    return Response.json(
-      {
-        error: {
-          code: "API_ORIGIN_MISSING",
-          message: "JOSTI_API_ORIGIN is not configured on this Vercel project",
-        },
-      },
-      { status: 502 },
-    );
-  }
+  if (!apiOrigin) return next();
 
   const incoming = new URL(request.url);
   const target = `${apiOrigin}${incoming.pathname}${incoming.search}`;
@@ -58,7 +46,6 @@ export default async function middleware(request: Request): Promise<Response> {
   };
   if (request.method !== "GET" && request.method !== "HEAD") {
     init.body = request.body;
-    // Required for streaming request bodies in the Edge fetch implementation.
     (init as RequestInit & { duplex?: string }).duplex = "half";
   }
 

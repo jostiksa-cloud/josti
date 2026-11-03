@@ -1,9 +1,9 @@
 /**
- * Vercel Edge Middleware for the admin SPA — proxies /api/* to the Bun API.
- * Keep in sync with the repository-root middleware.ts.
- *
- * Server-only env: JOSTI_API_ORIGIN (never VITE_*).
+ * Keep in sync with repository-root middleware.ts.
+ * Passes through to the local Vite/admin setup when JOSTI_API_ORIGIN is unset.
  */
+
+import { next } from "@vercel/functions";
 
 const HOP_BY_HOP = new Set([
   "connection",
@@ -24,17 +24,7 @@ export const config = {
 
 export default async function middleware(request: Request): Promise<Response> {
   const apiOrigin = (process.env.JOSTI_API_ORIGIN ?? "").trim().replace(/\/$/, "");
-  if (!apiOrigin) {
-    return Response.json(
-      {
-        error: {
-          code: "API_ORIGIN_MISSING",
-          message: "JOSTI_API_ORIGIN is not configured on this Vercel project",
-        },
-      },
-      { status: 502 },
-    );
-  }
+  if (!apiOrigin) return next();
 
   const incoming = new URL(request.url);
   const target = `${apiOrigin}${incoming.pathname}${incoming.search}`;
