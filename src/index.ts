@@ -1,3 +1,5 @@
+import { access } from "node:fs/promises";
+import { join } from "node:path";
 import { Hono } from "hono";
 import { createApp } from "./app";
 import { loadConfig } from "./config";
@@ -28,7 +30,20 @@ async function boot() {
     config.databaseMode === "postgres" && config.databaseUrl
       ? createPostgresSql(config.databaseUrl)
       : await createPgliteSql(config.pgliteDir);
-  const applied = await migrate(sql);
+  const migrationsDir = join(process.cwd(), "migrations");
+  let applied: string[] = [];
+  try {
+    await access(migrationsDir);
+    applied = await migrate(sql);
+  } catch (error) {
+    // Vercel Hono bundles omit the migrations folder. Apply schema out-of-band
+    // (bun run db:migrate) and skip boot-time migrate when the directory is absent.
+    if (!process.env.VERCEL) throw error;
+    log("warn", "skipping boot migrate; migrations directory unavailable", {
+      migrationsDir,
+      err: error instanceof Error ? error.message : String(error),
+    });
+  }
   log("info", "database ready", { applied, mode: config.databaseMode, storage: config.storageMode });
   const app = createApp(sql, config);
 
