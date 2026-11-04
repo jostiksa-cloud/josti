@@ -24,13 +24,15 @@
     {
       "source": "/admin",
       "destination": {
-        "service": "admin"
+        "service": "admin",
+        "path": "/"
       }
     },
     {
       "source": "/admin/(.*)",
       "destination": {
-        "service": "admin"
+        "service": "admin",
+        "path": "/$1"
       }
     },
     {

@@ -198,7 +198,11 @@ function Shell({
         />
       ) : null}
       <aside id="admin-side-nav" className={open ? "side open" : "side"}>
-        <img className="logo" src="/brand/JOSTI_Arabic_Tagline_Reverse.svg" alt="JOSTI" />
+        <img
+          className="logo"
+          src={`${import.meta.env.BASE_URL}brand/JOSTI_Arabic_Tagline_Reverse.svg`}
+          alt="JOSTI"
+        />
         <div className="brandline">{tx(lang, "نعرف الطريق", "We know the way")}</div>
         <div className="navlabel">{tx(lang, "مساحة العمل", "WORKSPACE")}</div>
         <nav>
@@ -300,8 +304,16 @@ function Login({
         }
       }}
     >
-      <img className="logo-color" src="/brand/JOSTI_Arabic_Tagline_Color.svg" alt="JOSTI" />
-      <img className="logo-reverse" src="/brand/JOSTI_Arabic_Tagline_Reverse.svg" alt="JOSTI" />
+      <img
+        className="logo-color"
+        src={`${import.meta.env.BASE_URL}brand/JOSTI_Arabic_Tagline_Color.svg`}
+        alt="JOSTI"
+      />
+      <img
+        className="logo-reverse"
+        src={`${import.meta.env.BASE_URL}brand/JOSTI_Arabic_Tagline_Reverse.svg`}
+        alt="JOSTI"
+      />
       <div className="row">
         <button className="ghost" type="button" onClick={() => setDark((value) => !value)}>
           {dark ? tx(lang, "الوضع الفاتح", "Light mode") : tx(lang, "الوضع الداكن", "Dark mode")}

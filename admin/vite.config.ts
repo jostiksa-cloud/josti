@@ -5,7 +5,7 @@ import { fileURLToPath, URL } from "node:url";
 export default defineConfig({
   // Production is mounted at https://josti.vercel.app/admin via Vercel services routing.
   // Local `vite`/`vite preview` keep root `/` for developer convenience.
-  base: process.env.VERCEL ? "/admin/" : "/",
+  base: process.env.VERCEL || process.env.VERCEL_ENV ? "/admin/" : "/",
   plugins: [react()],
   resolve: {
     alias: {
