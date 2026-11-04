@@ -69,50 +69,48 @@ function when(value: unknown, lang: Lang) {
     timeStyle: "short",
   }).format(date);
 }
-const DEMO_PASSWORD = "Password123";
-
-const demoAccounts = [
+/** Role picker labels only. Demo emails/passwords are never shipped in production builds. */
+const accountRoles = [
   {
     role: "merchant",
-    email: "merchant@josti.test",
     ar: "تاجر",
     en: "Merchant",
-    whoAr: "ليلى الحربي",
-    whoEn: "Layla Al-Harbi",
-    orgAr: "تجارة الخليج للتجزئة",
-    orgEn: "Gulf Retail Trading",
+    orgAr: "حساب تاجر",
+    orgEn: "Merchant account",
   },
   {
     role: "customs_broker",
-    email: "broker@josti.test",
     ar: "مخلص جمركي",
     en: "Customs broker",
-    whoAr: "عمر الزهراني",
-    whoEn: "Omar Al-Zahrani",
-    orgAr: "مكتب البحر الأحمر للتخليص",
-    orgEn: "Red Sea Customs Office",
+    orgAr: "حساب مخلص جمركي",
+    orgEn: "Customs broker account",
   },
   {
     role: "carrier",
-    email: "carrier@josti.test",
     ar: "ناقل",
     en: "Carrier",
-    whoAr: "ناصر العتيبي",
-    whoEn: "Nasser Al-Otaibi",
-    orgAr: "شركة نجد للنقل",
-    orgEn: "Najd Transport",
+    orgAr: "حساب ناقل",
+    orgEn: "Carrier account",
   },
   {
     role: "driver",
-    email: "driver@josti.test",
     ar: "سائق",
     en: "Driver",
-    whoAr: "فهد الحربي",
-    whoEn: "Fahad Al-Harbi",
-    orgAr: "شركة نجد للنقل",
-    orgEn: "Najd Transport",
+    orgAr: "حساب سائق",
+    orgEn: "Driver account",
   },
 ] as const;
+
+/** Local development helpers only — stripped from production bundles via import.meta.env.DEV. */
+const DEV_DEMO_PASSWORD = "Password123";
+const DEV_DEMO_ACCOUNTS = import.meta.env.DEV
+  ? ([
+      { role: "merchant", email: "merchant@josti.test" },
+      { role: "customs_broker", email: "broker@josti.test" },
+      { role: "carrier", email: "carrier@josti.test" },
+      { role: "driver", email: "driver@josti.test" },
+    ] as const)
+  : null;
 
 export function App() {
   const location = useLocation();
@@ -901,11 +899,11 @@ function Login({
   onAuth: (row: Row) => void;
 }) {
   const nav = useNavigate();
-  const [role, setRole] = useState<(typeof demoAccounts)[number]["role"]>("merchant");
-  const [email, setEmail] = useState<string>(demoAccounts[0].email);
-  const [password, setPassword] = useState(DEMO_PASSWORD);
+  const [role, setRole] = useState<(typeof accountRoles)[number]["role"]>("merchant");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const selected = demoAccounts.find((account) => account.role === role) ?? demoAccounts[0];
+  const selected = accountRoles.find((account) => account.role === role) ?? accountRoles[0];
   return (
     <AuthFrame lang={lang} setLang={setLang} dark={dark} setDark={setDark}>
       <form
@@ -941,22 +939,27 @@ function Login({
           <p className="muted">
             {tx(
               lang,
-              "أربعة أدوار مستقلة. اختيار الدور يعبّئ حساب التجربة، ويمكنك تعديل البريد وكلمة المرور.",
-              "Four separate roles. Choosing one fills the demonstration account. You can still edit the email and password.",
+              "أربعة أدوار مستقلة. أدخل بريدك الإلكتروني وكلمة المرور الخاصة بحسابك.",
+              "Four separate roles. Enter the email and password for your own account.",
             )}
           </p>
         </div>
         <div className="role-grid" role="group" aria-label={tx(lang, "نوع الحساب", "Account type")}>
-          {demoAccounts.map((account) => (
+          {accountRoles.map((account) => (
             <button
               key={account.role}
               className={role === account.role ? "role-card active" : "role-card"}
               type="button"
               onClick={() => {
                 setRole(account.role);
-                setEmail(account.email);
-                setPassword(DEMO_PASSWORD);
                 setError("");
+                if (DEV_DEMO_ACCOUNTS) {
+                  const demo = DEV_DEMO_ACCOUNTS.find((item) => item.role === account.role);
+                  if (demo) {
+                    setEmail(demo.email);
+                    setPassword(DEV_DEMO_PASSWORD);
+                  }
+                }
               }}
             >
               <strong>{tx(lang, account.ar, account.en)}</strong>
@@ -987,16 +990,15 @@ function Login({
             onChange={(event) => setPassword(event.target.value)}
           />
         </label>
-        <p className="demo-note">
-          {tx(lang, selected.whoAr, selected.whoEn)} · {selected.email}
-          <br />
-          {tx(
-            lang,
-            "كلمة مرور التجربة للحسابات الأربعة:",
-            "Demonstration password for all four accounts:",
-          )}{" "}
-          {DEMO_PASSWORD}
-        </p>
+        {DEV_DEMO_ACCOUNTS ? (
+          <p className="demo-note">
+            {tx(
+              lang,
+              "وضع التطوير فقط: اختيار الدور يعبّئ حساب التجربة المحلي.",
+              "Development only: choosing a role fills the local demonstration account.",
+            )}
+          </p>
+        ) : null}
         <button className="cyan auth-submit" type="submit">
           {tx(lang, "دخول", "Log in")}
         </button>

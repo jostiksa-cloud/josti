@@ -1,3 +1,4 @@
+import { Hono } from "hono";
 import { createApp } from "./app";
 import { loadConfig } from "./config";
 import { migrate } from "./db/migrate";
@@ -5,34 +6,66 @@ import { createPgliteSql, createPostgresSql } from "./db/sql";
 import { startJobs } from "./jobs/scheduler";
 import { log } from "./logger";
 
-const config = loadConfig();
-const sql =
-  config.databaseMode === "postgres" && config.databaseUrl
-    ? createPostgresSql(config.databaseUrl)
-    : await createPgliteSql(config.pgliteDir);
-const applied = await migrate(sql);
-log("info", "database ready", { applied, mode: config.databaseMode, storage: config.storageMode });
-const app = createApp(sql, config);
-
-// Vercel Hono preset requires a default export. Do not start Bun.serve or in-process
-// jobs inside the serverless/Fluid runtime.
-export default app;
-
-if (!process.env.VERCEL) {
-  const stopJobs = startJobs(sql, config);
-  const server = Bun.serve({
-    hostname: config.host,
-    port: config.port,
-    fetch: app.fetch,
-  });
-  log("info", "josti api listening", { url: `http://${config.host}:${server.port}` });
-
-  async function shutdown() {
-    stopJobs();
-    server.stop(true);
-    await sql.close();
-    process.exit(0);
-  }
-  process.on("SIGINT", () => void shutdown());
-  process.on("SIGTERM", () => void shutdown());
+function configFailureApp(message: string) {
+  const fallback = new Hono();
+  fallback.all("*", (c) =>
+    c.json(
+      {
+        error: {
+          code: "CONFIG_INVALID",
+          message,
+        },
+      },
+      503,
+    ),
+  );
+  return fallback;
 }
+
+async function boot() {
+  const config = loadConfig();
+  const sql =
+    config.databaseMode === "postgres" && config.databaseUrl
+      ? createPostgresSql(config.databaseUrl)
+      : await createPgliteSql(config.pgliteDir);
+  const applied = await migrate(sql);
+  log("info", "database ready", { applied, mode: config.databaseMode, storage: config.storageMode });
+  const app = createApp(sql, config);
+
+  if (!process.env.VERCEL) {
+    const stopJobs = startJobs(sql, config);
+    const server = Bun.serve({
+      hostname: config.host,
+      port: config.port,
+      fetch: app.fetch,
+    });
+    log("info", "josti api listening", { url: `http://${config.host}:${server.port}` });
+
+    async function shutdown() {
+      stopJobs();
+      server.stop(true);
+      await sql.close();
+      process.exit(0);
+    }
+    process.on("SIGINT", () => void shutdown());
+    process.on("SIGTERM", () => void shutdown());
+  }
+
+  return app;
+}
+
+let app: Awaited<ReturnType<typeof boot>> | ReturnType<typeof configFailureApp>;
+try {
+  app = await boot();
+} catch (error) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : "JOSTI cannot start because the production configuration is invalid";
+  log("error", "josti boot failed", { err: message });
+  // On Vercel, return JSON 503 instead of crashing the isolate with a non-JSON 500.
+  if (process.env.VERCEL) app = configFailureApp(message);
+  else throw error;
+}
+
+export default app;
