@@ -11,30 +11,27 @@
       "root": ".",
       "framework": "hono"
     },
-    "admin": {
-      "root": "admin",
-      "framework": "vite"
-    },
     "web": {
       "root": "web",
-      "framework": "vite"
+      "framework": "vite",
+      "buildCommand": "bun run build && bun run --cwd ../admin build:nested",
+      "rewrites": [
+        {
+          "source": "/admin",
+          "destination": "/admin/index.html"
+        },
+        {
+          "source": "/admin/(.*)",
+          "destination": "/admin/index.html"
+        },
+        {
+          "source": "/(.*)",
+          "destination": "/index.html"
+        }
+      ]
     }
   },
   "rewrites": [
-    {
-      "source": "/admin",
-      "destination": {
-        "service": "admin",
-        "path": "/"
-      }
-    },
-    {
-      "source": "/admin/(.*)",
-      "destination": {
-        "service": "admin",
-        "path": "/$1"
-      }
-    },
     {
       "source": "/api/(.*)",
       "destination": {

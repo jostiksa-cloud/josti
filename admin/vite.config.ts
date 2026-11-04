@@ -2,10 +2,14 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from "node:url";
 
+const nestedAdmin =
+  Boolean(process.env.VERCEL || process.env.VERCEL_ENV) ||
+  process.env.ADMIN_BASE === "/admin/";
+
 export default defineConfig({
-  // Production is mounted at https://josti.vercel.app/admin via Vercel services routing.
+  // Production admin is served from the web service at /admin/*.
   // Local `vite`/`vite preview` keep root `/` for developer convenience.
-  base: process.env.VERCEL || process.env.VERCEL_ENV ? "/admin/" : "/",
+  base: nestedAdmin ? "/admin/" : "/",
   plugins: [react()],
   resolve: {
     alias: {
