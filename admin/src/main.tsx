@@ -69,7 +69,19 @@ async function api<T>(path: string, options: { method?: string; json?: unknown }
     body,
     credentials: "include",
   });
-  const payload = await response.json().catch(() => ({}));
+  const raw = await response.text();
+  let payload: { data?: T; error?: { message?: string } } = {};
+  if (raw) {
+    try {
+      payload = JSON.parse(raw) as typeof payload;
+    } catch {
+      throw new ApiError(
+        response.ok
+          ? "The server returned a non-JSON response"
+          : raw.split("\n").find((line) => line.trim()) || "Request failed",
+      );
+    }
+  }
   if (!response.ok) throw new ApiError(payload.error?.message ?? "Request failed");
   return (payload.data ?? payload) as T;
 }

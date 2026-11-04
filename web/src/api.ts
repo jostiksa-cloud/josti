@@ -28,9 +28,19 @@ export async function api<T>(
     credentials: "include",
   });
   const text = await response.text();
-  const payload = text
-    ? (JSON.parse(text) as { data?: T; error?: { message?: string; details?: unknown } })
-    : {};
+  let payload: { data?: T; error?: { message?: string; details?: unknown } } = {};
+  if (text) {
+    try {
+      payload = JSON.parse(text) as typeof payload;
+    } catch {
+      throw new ApiError(
+        response.status || 502,
+        response.ok
+          ? "The server returned a non-JSON response"
+          : text.split("\n").find((line) => line.trim()) || "Request failed",
+      );
+    }
+  }
   if (!response.ok)
     throw new ApiError(
       response.status,
