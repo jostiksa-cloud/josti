@@ -111,7 +111,9 @@ function AdminApp() {
   }, []);
   if (!ready) return <p className="main">{tx(lang, "جار التحميل…", "Loading…")}</p>;
   return (
-    <BrowserRouter>
+    <BrowserRouter
+      basename={(import.meta.env.BASE_URL ?? "/").replace(/\/$/, "") || undefined}
+    >
       <Shell
         lang={lang}
         setLang={setLang}

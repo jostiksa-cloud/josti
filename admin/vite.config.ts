@@ -3,6 +3,9 @@ import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from "node:url";
 
 export default defineConfig({
+  // Production is mounted at https://josti.vercel.app/admin via Vercel services routing.
+  // Local `vite`/`vite preview` keep root `/` for developer convenience.
+  base: process.env.VERCEL ? "/admin/" : "/",
   plugins: [react()],
   resolve: {
     alias: {
